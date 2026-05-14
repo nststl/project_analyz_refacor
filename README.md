@@ -1,107 +1,67 @@
-✈️ OMS: ONE Order Transition System
-Адаптер міграції даних PNR у сучасний формат IATA ONE Order
+# Система керування бібліотекою (in-memory)
 
-Цей проєкт є програмним симулятором перехідного періоду авіакомпанії від застарілої системи бронювання (Legacy PNR на базі реляційної БД SQLite) до сучасної роздрібної системи управління замовленнями (OMS на базі нереляційної БД MongoDB), згідно зі стандартом IATA ONE Order.
+[![CI](https://github.com/nststl/project2/actions/workflows/ci-pipeline.yml/badge.svg?branch=kursova)](https://github.com/nststl/project2/actions/workflows/ci-pipeline.yml?query=branch%3Akursova)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=library-management-system&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=library-management-system)
 
-🌟 Основні можливості (Features)
-Інтелектуальний гібридний пошук: Одночасний пошук застарілих PNR (у SQLite) та сучасних Order ID (у MongoDB).
+> **Примітка:** бейдж SonarCloud запрацює після створення проєкту в SonarCloud і підстановки `sonar.projectKey` / `sonar.organization` у `sonar-project.properties`, а також секрету `SONAR_TOKEN` у GitHub Actions. Поки скан у workflow стоїть з `continue-on-error: true`, щоб гілка не ламалась без токена.
 
-Міграція даних: Трансформація "сирих" неструктурованих даних (PNR, E-Tickets, EMD) у структуровані JSON-документи (ONE Order).
+## Що це за проєкт
 
-Створення роздрібних замовлень: Генерація нових бронювань безпосередньо у форматі ONE Order з індивідуальними налаштуваннями послуг для кожного пасажира.
+Доменна модель **бібліотеки**: читачі та бібліотекарі, **видача** та **повернення** примірників, **черга резерву** (FIFO), **нарахування штрафів** за прострочення (кілька стратегій), **блокування читача** (ручне бібліотекарем та автоматичне за політикою після серйозної заборгованості). Усі дані — **in-memory** (без зовнішніх БД та HTTP API), згідно з вимогами курсової.
 
-🛠 Технологічний стек
-Мова програмування: Python 3.8+
+Детальний опис вимог, акторів і сценаріїв: [`docs/requirements.md`](docs/requirements.md). UML-діаграми (Mermaid): [`docs/diagrams/`](docs/diagrams/).
 
-Графічний інтерфейс: tkinter + ttk (вбудовані бібліотеки)
+## Архітектура (коротко)
 
-Застаріла БД (Legacy): sqlite3 (вбудована бібліотека)
+| Шар | Призначення |
+|-----|-------------|
+| `src/models` | Сутності та переліки |
+| `src/services` | Бізнес-логіка (кредити, резерви, адміністрування) |
+| `src/storage` | Протоколи репозиторіїв + in-memory реалізації |
+| `src/patterns` | **Strategy** (штрафи), **Observer** (сповіщення про наявність книги) |
+| `src/utils` | Допоміжні функції (час, календарні дні прострочення) |
 
-Сучасна БД (ONE Order): MongoDB (pymongo)
+## Запуск тестів локально
 
-⚙️ Вимоги до системи (Prerequisites)
-Перед запуском проєкту переконайтеся, що на вашому комп'ютері встановлено:
-
-Python (версії 3.8 або вище).
-
-MongoDB Community Server: Це локальний сервер бази даних.
-
-Завантажити MongoDB
-
-Під час інсталяції залиште порт за замовчуванням (27017) та погодьтеся на встановлення MongoDB Compass.
-
-MongoDB Compass: Графічний інтерфейс для перегляду бази даних MongoDB (зазвичай встановлюється разом із сервером).
-
-🚀 Інструкція зі встановлення та запуску
-Крок 1: Налаштування віртуального середовища
-Відкрийте термінал у папці вашого проєкту (наприклад, у PyCharm) та виконайте наступні команди:
-
-Для Windows:
-
-Bash
-# Створення віртуального середовища
+```bash
 python -m venv .venv
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate    # Linux/macOS
 
-# Активація
-.venv\Scripts\activate
-Для Mac/Linux:
+pip install -r requirements.txt
+mkdir -p reports htmlcov       # Linux/macOS; у PowerShell: mkdir reports, htmlcov -Force
 
-Bash
-python3 -m venv .venv
-source .venv/bin/activate
-Крок 2: Встановлення залежностей
-Оскільки SQLite та Tkinter є вбудованими бібліотеками Python, вам потрібно встановити лише драйвер для підключення до MongoDB:
+pytest tests --junitxml=reports/junit.xml ^
+  --cov=models --cov=services --cov=storage --cov=patterns --cov=utils ^
+  --cov-report=xml:coverage.xml --cov-report=html:htmlcov
+```
 
-Bash
-pip install pymongo
-Крок 3: Перевірка сервера MongoDB
-Переконайтеся, що сервер MongoDB запущений на вашому комп'ютері (у Windows це можна перевірити в "Службах" - служба MongoDB Database Server має працювати).
+Поріг покриття **70%** задано в `pyproject.toml` (`tool.coverage.report.fail_under`). Кількість тестів — **200+** (параметризовані матриці + модульні/інтеграційні).
 
-Відкрийте MongoDB Compass і натисніть кнопку Connect (за замовчуванням адреса mongodb://localhost:27017/).
+## Docker
 
-Крок 4: Ініціалізація баз даних (Очищення та Генерація)
-Перед першим запуском основного додатка необхідно згенерувати базу даних із застарілими PNR.
+```bash
+docker build -t library-ci .
+docker run --rm -v "%cd%/reports:/app/reports" -v "%cd%/htmlcov:/app/htmlcov" library-ci
+```
 
-Створіть файл reset_and_seed.py (якщо його ще немає) і вставте в нього код для генерації 10 000 записів.
+(На Linux замість `%cd%` використай `$PWD`.)
 
-Запустіть цей скрипт:
+## SonarQube / SonarCloud
 
-Bash
-python reset_and_seed.py
-Примітка: Цей скрипт створить файл legacy_airlines.db у папці проєкту. Якщо ви хочете "обнулити" проєкт, просто видаліть цей файл і базу oms_database у MongoDB Compass, а потім запустіть скрипт знову.
+1. Створи проєкт у [SonarCloud](https://sonarcloud.io) (або підключи self-hosted SonarQube).
+2. Онови `sonar-project.properties`: `sonar.organization`, `sonar.projectKey`.
+3. У репозиторії GitHub: **Settings → Secrets → Actions** — додай `SONAR_TOKEN`.
+4. За потреби прибери `continue-on-error: true` у кроці Sonar у `.github/workflows/ci-pipeline.yml`, коли все налаштовано.
 
-Крок 5: Запуск основного додатку
-Коли тестові дані згенеровані, запустіть головний файл програми (наприклад, oms_master_app.py):
+## Артефакти CI
 
-Bash
-python oms_master_app.py
-📖 Як користуватися програмою (Для демонстрації)
-Вкладка "НОВЕ БРОНЮВАННЯ":
+Після кожного успішного прогону workflow **CI Quality Gate** у GitHub Actions з’являється артефакт **`quality-reports`** (ZIP): `coverage.xml`, `reports/junit.xml`, каталог `htmlcov/`.
 
-Виберіть кількість пасажирів (наприклад, 2).
+## Захист гілки (рекомендація)
 
-Заповніть маршрут та рейс.
+У GitHub: **Settings → Branches → Branch protection** для `kursova` / `main`: увімкни **Require status checks to pass** (обов’язковий job `build-test-analyze`) та заборону merge при падінні тестів / coverage.
 
-Введіть імена (лише англійською) та виберіть різні додаткові послуги для кожного пасажира.
+## Легасі OMS (не входить у основну курсову)
 
-Натисніть "Підтвердити". Скопіюйте згенерований Order ID або Legacy PNR.
-
-Вкладка "ПОШУК":
-
-Вставте скопійований код. Програма покаже, як дані збереглися у вигляді гнучкого JSON-документа, де у кожного пасажира є свої власні послуги.
-
-Вкладка "МІГРАЦІЯ":
-
-Візьміть будь-який старий PNR (можна знайти через DB Browser for SQLite у файлі legacy_airlines.db).
-
-Введіть його в поле міграції. Програма "на льоту" перетворить сирий текст допок і квитків на правильну NoSQL-структуру.
-
-🛠 Можливі проблеми (Troubleshooting)
-Помилка Connection refused (pymongo.errors.ServerSelectionTimeoutError):
-Сервер MongoDB не запущений. Перевірте служби Windows або запустіть MongoDB вручну.
-
-Помилка `PermissionError: [WinError 32] ... 'legacy_airlines.db'":
-Файл бази даних відкрито в іншій програмі (наприклад, основний додаток все ще працює, або файл відкритий у DB Browser). Закрийте всі програми, що використовують цей файл, і спробуйте знову.
-
-Не знайдено модуль tkinter:
-У деяких дистрибутивах Linux (наприклад, Ubuntu) Tkinter потрібно встановлювати окремо: sudo apt-get install python3-tk. У Windows та macOS він встановлюється разом із Python.
+Старий демо-скрипт авіаційного OMS (SQLite + MongoDB) залишено в каталозі [`legacy/`](legacy/README.md) лише для історії; **основна здача** — бібліотечний in-memory код у `src/` та тести в `tests/`.

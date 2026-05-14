@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "library-management-system"
+version = "1.0.0"
+description = "In-memory library domain: loans, reservations, penalties (course project)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=4.1",
+  "pytest-xdist>=3.5",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q --strict-markers --tb=short"
+junit_family = "xunit2"
+
+[tool.coverage.run]
+source = ["models", "services", "storage", "patterns", "utils"]
+branch = true
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+fail_under = 70
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]
