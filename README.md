@@ -3,7 +3,7 @@
 [![CI](https://github.com/nststl/project2/actions/workflows/ci-pipeline.yml/badge.svg?branch=kursova)](https://github.com/nststl/project2/actions/workflows/ci-pipeline.yml?query=branch%3Akursova)
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=nststl_project2&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=nststl_project2)
 
-> **Sonar (перевірка викладачем):** у GitHub обов’язково додай секрет **`SONAR_TOKEN`**. У [SonarCloud](https://sonarcloud.io) створи проєкт і вистав ті самі **`sonar.projectKey`** та **`sonar.organization`**, що й у файлі [`sonar-project.properties`](sonar-project.properties) (зараз `nststl_project2` / `nststl`). Якщо в Sonar інший ключ — зміни properties і бейдж вище. CI чекає на **Quality Gate** (`-Dsonar.qualitygate.wait=true`).
+> **Sonar (перевірка викладачем):** у GitHub обов’язково додай секрет **`SONAR_TOKEN`**. У [SonarCloud](https://sonarcloud.io) створи проєкт і вистав ті самі **`sonar.projectKey`** та **`sonar.organization`**, що й у файлі [`sonar-project.properties`](sonar-project.properties) (зараз `nststl_project2` / `nststl`). Якщо в Sonar інший ключ — зміни properties і бейдж вище — **CI чекає на Quality Gate** (`-Dsonar.qualitygate.wait=true`).
 
 ## Що це за проєкт
 
@@ -86,4 +86,5 @@ docker run --rm -v "%cd%/reports:/app/reports" -v "%cd%/htmlcov:/app/htmlcov" li
 
 ## Легасі OMS (не входить у основну курсову)
 
-Старий демо-скрипт авіаційного OMS (SQLite + MongoDB) залишено в каталозі [`legacy/`](legacy/README.md) лише для історії; **основна здача** — бібліотечний in-memory код у `src/` та тести в `tests/`.
+Старий демо-скрипт авіаційного OMS (SQLite + MongoDB) залишено в каталозі [`legacy/`](legacy/README.md) лише для історії; **основна здача** — бібліотечний in-memory код у `src/` та тести в `tests/`
+
