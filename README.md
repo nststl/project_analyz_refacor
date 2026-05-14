@@ -1,9 +1,9 @@
 # Система керування бібліотекою (in-memory)
 
 [![CI](https://github.com/nststl/project2/actions/workflows/ci-pipeline.yml/badge.svg?branch=kursova)](https://github.com/nststl/project2/actions/workflows/ci-pipeline.yml?query=branch%3Akursova)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=library-management-system&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=library-management-system)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=nststl_project2&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=nststl_project2)
 
-> **Примітка:** бейдж SonarCloud запрацює після створення проєкту в SonarCloud і підстановки `sonar.projectKey` / `sonar.organization` у `sonar-project.properties`, а також секрету `SONAR_TOKEN` у GitHub Actions. Поки скан у workflow стоїть з `continue-on-error: true`, щоб гілка не ламалась без токена.
+> **Sonar (перевірка викладачем):** у GitHub обов’язково додай секрет **`SONAR_TOKEN`**. У [SonarCloud](https://sonarcloud.io) створи проєкт і вистав ті самі **`sonar.projectKey`** та **`sonar.organization`**, що й у файлі [`sonar-project.properties`](sonar-project.properties) (зараз `nststl_project2` / `nststl`). Якщо в Sonar інший ключ — зміни properties і бейдж вище. CI чекає на **Quality Gate** (`-Dsonar.qualitygate.wait=true`).
 
 ## Що це за проєкт
 
@@ -47,12 +47,19 @@ docker run --rm -v "%cd%/reports:/app/reports" -v "%cd%/htmlcov:/app/htmlcov" li
 
 (На Linux замість `%cd%` використай `$PWD`.)
 
-## SonarQube / SonarCloud
+## SonarCloud / SonarQube (для викладача)
 
-1. Створи проєкт у [SonarCloud](https://sonarcloud.io) (або підключи self-hosted SonarQube).
-2. Онови `sonar-project.properties`: `sonar.organization`, `sonar.projectKey`.
-3. У репозиторії GitHub: **Settings → Secrets → Actions** — додай `SONAR_TOKEN`.
-4. За потреби прибери `continue-on-error: true` у кроці Sonar у `.github/workflows/ci-pipeline.yml`, коли все налаштовано.
+### SonarCloud (типовий варіант)
+
+1. Увійди на [sonarcloud.io](https://sonarcloud.io) через GitHub і додай організацію/репозиторій **nststl/project2** (або створи проєкт вручну).
+2. У **Administration → Update Key** (або при створенні) вистав **Project Key** рівно **`nststl_project2`** (або зміни це значення і в [`sonar-project.properties`](sonar-project.properties), і бейдж у верхній частині README).
+3. **Organization** у SonarCloud має збігатися з **`sonar.organization=nststl`** у `sonar-project.properties` (якщо організація інша — зміни файл).
+4. Згенеруй токен: **My Account → Security** (або токен аналізу проєкту) і додай у GitHub: **Settings → Secrets and variables → Actions → `SONAR_TOKEN`**.
+5. Після push на `kursova` відкрий **Actions**: job має пройти тести, зібрати `coverage.xml` / `reports/junit.xml`, потім **Sonar scan** і чекати **Quality Gate** (`sonar.qualitygate.wait=true` у workflow).
+
+### Якщо викладач дає self-hosted SonarQube
+
+Офіційний крок GitHub для Cloud (`sonarcloud-github-action`) **не підходить** для сервера без додаткових змін. Варіанти: попросити викладача прийняти лише звіти з артефактів CI, або замінити крок скану на [`SonarSource/sonarqube-scan-action`](https://github.com/SonarSource/sonarqube-scan-action) з змінними **`SONAR_HOST_URL`**, **`SONAR_TOKEN`** і розкоментованим **`sonar.host.url`** у `sonar-project.properties`.
 
 ## Артефакти CI
 

@@ -6,8 +6,10 @@ on:
   pull_request:
     branches: [main, master, develop, kursova]
 
+# Для SonarCloud (PR decoration) зручно мати read на pull-requests
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   build-test-analyze:
@@ -49,9 +51,13 @@ jobs:
             reports/junit.xml
             htmlcov/
 
-      - name: SonarCloud Scan
+      # Потрібен секрет SONAR_TOKEN у репозиторії (SonarCloud → My Account → Security, або токен проєкту).
+      # Якщо токена немає — цей крок впаде: додай секрет перед здачею / показом викладачу.
+      - name: SonarCloud / Sonar scan
         uses: SonarSource/sonarcloud-github-action@master
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
