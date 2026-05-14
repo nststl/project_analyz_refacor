@@ -51,12 +51,11 @@ jobs:
             reports/junit.xml
             htmlcov/
 
-      # Потрібен секрет SONAR_TOKEN у репозиторії (SonarCloud → My Account → Security, або токен проєкту).
-      # Якщо токена немає — цей крок впаде: додай секрет перед здачею / показом викладачу.
-      - name: SonarCloud / Sonar scan
-        uses: SonarSource/sonarcloud-github-action@master
+      # SONAR_TOKEN — лише токен з SonarCloud (див. README). Рекомендовано Organization token з правами аналізу.
+      # Офіційна дія замість застарілого sonarcloud-github-action: https://github.com/SonarSource/sonarqube-scan-action
+      - name: SonarCloud scan
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >

@@ -59,7 +59,18 @@ docker run --rm -v "%cd%/reports:/app/reports" -v "%cd%/htmlcov:/app/htmlcov" li
 
 ### Якщо викладач дає self-hosted SonarQube
 
-Офіційний крок GitHub для Cloud (`sonarcloud-github-action`) **не підходить** для сервера без додаткових змін. Варіанти: попросити викладача прийняти лише звіти з артефактів CI, або замінити крок скану на [`SonarSource/sonarqube-scan-action`](https://github.com/SonarSource/sonarqube-scan-action) з змінними **`SONAR_HOST_URL`**, **`SONAR_TOKEN`** і розкоментованим **`sonar.host.url`** у `sonar-project.properties`.
+У workflow уже стоїть [`SonarSource/sonarqube-scan-action`](https://github.com/SonarSource/sonarqube-scan-action). Для **SonarQube Server** додай у GitHub Secrets **`SONAR_HOST_URL`** (URL інстансу) і розкоментуй **`sonar.host.url`** у `sonar-project.properties`. Для **SonarCloud** `SONAR_HOST_URL` не потрібен.
+
+### Помилка в CI: `Project not found` після `Analysis report uploaded`
+
+Сканер уже відправив звіт, але крок **очікування Quality Gate** не може прочитати проєкт через API. Найчастіше:
+
+1. **`SONAR_TOKEN` не той акаунт / недостатні права** — токен має належати користувачу з доступом до організації **`nststl`** і проєкту **`nststl_project2`**. Перевір: **SonarCloud → Organization `nststl` → (шестерня) Administration → Security** і створи **Organization analysis token**, або токен з правами аналізу саме цього проєкту. Онови секрет `SONAR_TOKEN` у GitHub.
+2. **Ключ проєкту не збігається** — у SonarCloud відкрий проєкт → **Project Information** і скопіюй **Project key** один-в-один у `sonar-project.properties` (`sonar.projectKey`).
+3. **Прив’язка до GitHub (ALM)** — у логах було `Project binding: NONEXISTENT`. У Sonar: **Project Settings → General → Pull Request / DevOps platform integration** і прив’яжи репо **`nststl/project2`** — це знімає частину проблем із гілками та статусом.
+4. **Немає гілки `master`** — у логах попередження `Could not find ref: master`. У **SonarCloud → Branches** вкажи основну гілку **`kursova`** (або у GitHub зроби default branch `kursova`), щоб порівняння “new code” не ламалось.
+
+Якщо терміново треба зелений CI без розбору токена, тимчасово прибери з workflow рядок `-Dsonar.qualitygate.wait=true` — аналіз у Sonar все одно з’явиться, але job не чекатиме на Quality Gate у тому ж процесі.
 
 ## Артефакти CI
 
