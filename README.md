@@ -65,12 +65,16 @@ docker run --rm -v "%cd%/reports:/app/reports" -v "%cd%/htmlcov:/app/htmlcov" li
 
 Сканер уже відправив звіт, але крок **очікування Quality Gate** не може прочитати проєкт через API. Найчастіше:
 
-1. **`SONAR_TOKEN` не той акаунт / недостатні права** — токен має належати користувачу з доступом до організації **`nststl`** і проєкту **`nststl_project2`**. Перевір: **SonarCloud → Organization `nststl` → (шестерня) Administration → Security** і створи **Organization analysis token**, або токен з правами аналізу саме цього проєкту. Онови секрет `SONAR_TOKEN` у GitHub.
-2. **Ключ проєкту не збігається** — у SonarCloud відкрий проєкт → **Project Information** і скопіюй **Project key** один-в-один у `sonar-project.properties` (`sonar.projectKey`).
-3. **Прив’язка до GitHub (ALM)** — у логах було `Project binding: NONEXISTENT`. У Sonar: **Project Settings → General → Pull Request / DevOps platform integration** і прив’яжи репо **`nststl/project2`** — це знімає частину проблем із гілками та статусом.
-4. **Немає гілки `master`** — у логах попередження `Could not find ref: master`. У **SonarCloud → Branches** вкажи основну гілку **`kursova`** (або у GitHub зроби default branch `kursova`), щоб порівняння “new code” не ламалось.
+1. **Неправильний тип `SONAR_TOKEN`.** Токен з майстра **«Analyze → Other CI»** лише для одного проєкту інколи **дозволяє відправити звіт**, але **не дозволяє** опитати API статусу / Quality Gate → тоді upload ОК, а wait падає з `Project not found`.  
+   **Зроби так:** SonarCloud → **My Account → Security** → **Generate token** (персональний токен користувача, який є в організації **`nststl`** і має доступ до **`nststl_project2`**).  
+   Або: **Organization `nststl` → Administration → Security → Organization analysis token**.  
+   Онови секрет **`SONAR_TOKEN`** у GitHub цим токеном (не GitHub PAT).
+2. **Ключ проєкту** — у SonarCloud → **Project Information** скопіюй **Project key** один-в-один у `sonar-project.properties` (`sonar.projectKey`).
+3. **Прив’язка GitHub** — у логах `Project binding: NOT_BOUND`. У Sonar: **Project Settings → General → DevOps platform integration** → прив’яжи **`nststl/project2`** (або створи проєкт через **Import from GitHub**).
+4. **Немає `master`** — попередження `Could not find ref: master`. У **SonarCloud → Branches** вкажи основну гілку **`kursova`**, або в GitHub зроби **default branch** = `kursova`.
+5. У workflow у крок Sonar передаються **`SONAR_TOKEN`** і **`GITHUB_TOKEN`** (як рекомендує інтеграція SonarCloud + GitHub).
 
-Якщо терміново треба зелений CI без розбору токена, тимчасово прибери з workflow рядок `-Dsonar.qualitygate.wait=true` — аналіз у Sonar все одно з’явиться, але job не чекатиме на Quality Gate у тому ж процесі.
+Якщо терміново треба зелений CI: тимчасово прибери `-Dsonar.qualitygate.wait=true` — аналіз у Sonar лишиться, але job не чекатиме на Quality Gate в одному прогоні.
 
 ## Артефакти CI
 
