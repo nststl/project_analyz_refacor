@@ -1,9 +1,7 @@
 # Система керування бібліотекою (in-memory)
 
 [![CI](https://github.com/nststl/project_analyz_refacor/actions/workflows/ci-pipeline.yml/badge.svg?branch=main)](https://github.com/nststl/project_analyz_refacor/actions/workflows/ci-pipeline.yml?query=branch%3Amain)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=nststl_project_analyz_refacor&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=nststl_project_analyz_refacor)
-
-> **Sonar (перевірка викладачем):** у GitHub обов’язково додай секрет **`SONAR_TOKEN`**. У [SonarCloud](https://sonarcloud.io) створи проєкт і вистав ті самі **`sonar.projectKey`** та **`sonar.organization`**, що й у файлі [`sonar-project.properties`](sonar-project.properties) (зараз `nststl_project_analyz_refacor` / `nststl`). **CI чекає на Quality Gate** (`-Dsonar.qualitygate.wait=true`).
+> **SonarQube (перевірка викладачем):** у GitHub Secrets додай **`SONAR_TOKEN`** і **`SONAR_HOST_URL`** (URL вашого SonarQube). На сервері створи проєкт з ключем **`nststl_project_analyz_refacor`** (як у [`sonar-project.properties`](sonar-project.properties)). **CI чекає на Quality Gate** (`-Dsonar.qualitygate.wait=true`).
 
 ## Що це за проєкт
 
@@ -61,34 +59,32 @@ docker run --rm -v "%cd%/reports:/app/reports" -v "%cd%/htmlcov:/app/htmlcov" li
 
 (На Linux замість `%cd%` використай `$PWD`.)
 
-## SonarCloud / SonarQube (для викладача)
+## SonarQube (self-hosted, для викладача)
 
-### SonarCloud (типовий варіант)
+Проєкт налаштований на **SonarQube Server** (не SonarCloud). У CI — [`SonarSource/sonarqube-scan-action`](https://github.com/SonarSource/sonarqube-scan-action).
 
-1. Увійди на [sonarcloud.io](https://sonarcloud.io) через GitHub і додай репозиторій **[nststl/project_analyz_refacor](https://github.com/nststl/project_analyz_refacor)**.
-2. У **Administration → Update Key** (або при створенні) вистав **Project Key** рівно **`nststl_project_analyz_refacor`** (як у [`sonar-project.properties`](sonar-project.properties)).
-3. **Organization** у SonarCloud має збігатися з **`sonar.organization=nststl`** у `sonar-project.properties` (якщо організація інша — зміни файл).
-4. Згенеруй токен: **My Account → Security** (або токен аналізу проєкту) і додай у GitHub: **Settings → Secrets and variables → Actions → `SONAR_TOKEN`**.
-5. Після push на **`main`** відкрий **Actions**: job має пройти тести, зібрати `coverage.xml` / `reports/junit.xml`, потім **Sonar scan** і чекати **Quality Gate**.
+### GitHub Secrets (репозиторій `project_analyz_refacor`)
 
-### Якщо викладач дає self-hosted SonarQube
+| Secret | Значення |
+|--------|----------|
+| `SONAR_TOKEN` | SonarQube → **My Account → Security → Generate Token** (користувач з правом аналізу проєкту) |
+| `SONAR_HOST_URL` | URL сервера, напр. `https://sonar.university.edu.ua` (**без** `/` в кінці) |
 
-У workflow уже стоїть [`SonarSource/sonarqube-scan-action`](https://github.com/SonarSource/sonarqube-scan-action). Для **SonarQube Server** додай у GitHub Secrets **`SONAR_HOST_URL`** (URL інстансу) і розкоментуй **`sonar.host.url`** у `sonar-project.properties`. Для **SonarCloud** `SONAR_HOST_URL` не потрібен.
+### На SonarQube
 
-### Помилка в CI: `Project not found` після `Analysis report uploaded`
+1. **Create project** (або **Analyze new project**) з ключем **`nststl_project_analyz_refacor`** — як у [`sonar-project.properties`](sonar-project.properties).
+2. Якщо ключ інший — зміни `sonar.projectKey` у файлі під ваш сервер.
+3. Увімкни **Quality Gate** (типовий «Sonar way» або вимоги курсу: coverage ≥ 70% тощо).
 
-Сканер уже відправив звіт, але крок **очікування Quality Gate** не може прочитати проєкт через API. Найчастіше:
+### Після push на `main`
 
-1. **Неправильний тип `SONAR_TOKEN`.** Токен з майстра **«Analyze → Other CI»** лише для одного проєкту інколи **дозволяє відправити звіт**, але **не дозволяє** опитати API статусу / Quality Gate → тоді upload ОК, а wait падає з `Project not found`.  
-   **Зроби так:** SonarCloud → **My Account → Security** → **Generate token** (користувач з доступом до org **`nststl`** і проєкту **`nststl_project_analyz_refacor`**).  
-   Або: **Organization `nststl` → Administration → Security → Organization analysis token**.  
-   Онови секрет **`SONAR_TOKEN`** у GitHub цим токеном (не GitHub PAT).
-2. **Ключ проєкту** — у SonarCloud → **Project Information** скопіюй **Project key** один-в-один у `sonar-project.properties` (`sonar.projectKey`).
-3. **Прив’язка GitHub** — у Sonar: **Project Settings → DevOps platform integration** → прив’яжи **`nststl/project_analyz_refacor`**.
-4. Основна гілка — **`main`** (у GitHub **Settings → General → Default branch**).
-5. У workflow у крок Sonar передаються **`SONAR_TOKEN`** і **`GITHUB_TOKEN`** (як рекомендує інтеграція SonarCloud + GitHub).
+Workflow: тести → `coverage.xml` / `junit.xml` → скан SonarQube → очікування **Quality Gate**.
 
-Якщо терміново треба зелений CI: тимчасово прибери `-Dsonar.qualitygate.wait=true` — аналіз у Sonar лишиться, але job не чекатиме на Quality Gate в одному прогоні.
+### Типові помилки
+
+- **`without SONAR_TOKEN`** — секрет не додано або неправильна назва.
+- **`Project not found`** — немає проєкту з таким ключем на **вашому** SonarQube, або токен без доступу.
+- **`Communicating with SonarQube Cloud`** — не задано **`SONAR_HOST_URL`** (сканер пішов у Cloud замість вашого сервера).
 
 ## Артефакти CI
 

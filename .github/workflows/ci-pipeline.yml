@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
 
-# Для SonarCloud (PR decoration) зручно мати read на pull-requests
+# Self-hosted SonarQube: SONAR_TOKEN + SONAR_HOST_URL у Secrets репозиторію
 permissions:
   contents: read
   pull-requests: read
@@ -51,20 +51,25 @@ jobs:
             reports/junit.xml
             htmlcov/
 
-      - name: Verify SONAR_TOKEN secret exists
+      - name: Verify SonarQube secrets exist
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
           if [ -z "$SONAR_TOKEN" ]; then
-            echo "::error::SONAR_TOKEN не налаштовано. GitHub → nststl/project_analyz_refacor → Settings → Secrets and variables → Actions → New repository secret. Ім'я ТОЧНО: SONAR_TOKEN (токен з SonarCloud → My Account → Security)."
+            echo "::error::SONAR_TOKEN не налаштовано. SonarQube → My Account → Security → Generate Token. Додай у GitHub → Settings → Secrets → Actions (ім'я: SONAR_TOKEN)."
+            exit 1
+          fi
+          if [ -z "$SONAR_HOST_URL" ]; then
+            echo "::error::SONAR_HOST_URL не налаштовано. Додай URL вашого SonarQube, напр. https://sonar.university.edu.ua (без слеша в кінці)."
             exit 1
           fi
 
-      - name: SonarCloud scan
+      - name: SonarQube scan
         uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           args: >
             -Dsonar.qualitygate.wait=true
