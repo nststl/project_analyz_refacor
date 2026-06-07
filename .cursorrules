@@ -20,4 +20,4 @@
 ## Документація
 
 - Архітектура: `.cursor/rules/architecture.md`
-- Тести та звіти: `.cursor/rules/testing_strategy.md`
+- Тести та звіти: `.cursor/rules/testing.md`

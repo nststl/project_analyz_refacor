@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.web_client import csrf_post
+from web_client import csrf_post
 from web.app import create_app
 from web.context import build_library_context
 
