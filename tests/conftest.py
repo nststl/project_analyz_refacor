@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from datetime import datetime, timezone
 from typing import Callable
 
@@ -23,7 +24,7 @@ from storage.in_memory import (
 )
 from utils.time_utils import ensure_aware_utc
 
-os.environ.setdefault("FLASK_TEST_SECRET_KEY", "0" * 64)
+os.environ.setdefault("FLASK_TEST_SECRET_KEY", secrets.token_hex(32))
 
 
 class FrozenClock:

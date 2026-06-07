@@ -40,6 +40,32 @@ def safe_error_message(exc: DomainError) -> str:
     return _SAFE_ERROR_MESSAGES.get(type(exc), "Помилка операції.")
 
 
+def sanitize_search_query(raw: str, *, max_len: int = 80) -> str:
+    """Strip characters that could break HTML; breaks Sonar XSS taint on ?q=."""
+    cleaned = raw.strip()[:max_len].lower()
+    return "".join(c for c in cleaned if c.isalnum() or c in " -_")
+
+
+def pick_reader_id(raw: str, allowed: frozenset[str], default: str) -> str:
+    return raw if raw in allowed else default
+
+
+def pick_mode(raw: str) -> str:
+    return raw if raw in ("reader", "librarian") else "reader"
+
+
+def pick_book_id(raw: str, allowed: frozenset[str]) -> str:
+    return raw if raw in allowed else ""
+
+
+def clamp_block_days(raw: str, *, default: int = 7, max_days: int = 90) -> int:
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(max_days, days))
+
+
 def resolve_flask_secret_key(*, testing: bool) -> str:
     if testing:
         key = os.environ.get("FLASK_TEST_SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY")

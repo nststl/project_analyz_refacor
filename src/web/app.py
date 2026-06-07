@@ -10,7 +10,15 @@ from models.enums import LoanState, Role
 from services.exceptions import DomainError
 from utils.time_utils import calendar_overdue_days
 from web.context import LibraryContext
-from web.security import resolve_flask_secret_key, safe_error_message
+from web.security import (
+    clamp_block_days,
+    pick_book_id,
+    pick_mode,
+    pick_reader_id,
+    resolve_flask_secret_key,
+    safe_error_message,
+    sanitize_search_query,
+)
 
 LIBRARIAN_ID = "lib-1"
 
@@ -34,10 +42,38 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+        )
         return response
 
+    def reader_ids() -> frozenset[str]:
+        return frozenset(u.id for u in ctx.users.list_all() if u.role == Role.READER)
+
+    def book_ids() -> frozenset[str]:
+        return frozenset(b.id for b in ctx.books.list_all())
+
+    def default_reader_id() -> str:
+        ids = reader_ids()
+        return "reader-1" if "reader-1" in ids else next(iter(ids), "reader-1")
+
     def redirect_back(reader_id: str, mode: str = "reader", **extra: str) -> redirect:
-        return redirect(url_for("index", reader_id=reader_id, mode=mode, **extra))
+        safe_reader = pick_reader_id(reader_id, reader_ids(), default_reader_id())
+        safe_mode = pick_mode(mode)
+        safe_extra = {k: v for k, v in extra.items() if k == "q" and v}
+        if "q" in safe_extra:
+            safe_extra["q"] = sanitize_search_query(safe_extra["q"])
+        return redirect(url_for("index", reader_id=safe_reader, mode=safe_mode, **safe_extra))
+
+    def form_reader_id() -> str:
+        return pick_reader_id(
+            request.form.get("reader_id", default_reader_id()),
+            reader_ids(),
+            default_reader_id(),
+        )
+
+    def form_mode() -> str:
+        return pick_mode(request.form.get("mode", "reader"))
 
     def require_librarian_mode() -> bool:
         if request.form.get("mode") != "librarian":
@@ -47,11 +83,13 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
 
     @app.get("/")
     def index():
-        mode = request.args.get("mode", "reader")
-        if mode not in ("reader", "librarian"):
-            mode = "reader"
-        reader_id = request.args.get("reader_id", "reader-1")
-        search_q = request.args.get("q", "").strip().lower()
+        mode = pick_mode(request.args.get("mode", "reader"))
+        reader_id = pick_reader_id(
+            request.args.get("reader_id", default_reader_id()),
+            reader_ids(),
+            default_reader_id(),
+        )
+        search_q = sanitize_search_query(request.args.get("q", ""))
 
         books = ctx.books.list_all()
         if search_q:
@@ -122,34 +160,27 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
 
     @app.post("/borrow")
     def borrow():
-        reader_id = request.form.get("reader_id", "reader-1")
-        mode = request.form.get("mode", "reader")
-        book_id = request.form.get("book_id", "")
+        reader_id = form_reader_id()
+        mode = form_mode()
+        book_id = pick_book_id(request.form.get("book_id", ""), book_ids())
         try:
-            loan = ctx.loan_service.borrow(reader_id, book_id)
-            flash(f"Видано: {loan.id}, повернути до {loan.due_at.date()}", "success")
+            ctx.loan_service.borrow(reader_id, book_id)
+            flash("Книгу видано. Перевірте розділ «Мої позики».", "success")
         except DomainError as exc:
             flash(safe_error_message(exc), "error")
         return redirect_back(reader_id, mode)
 
     @app.post("/return")
     def return_loan():
-        reader_id = request.form.get("reader_id", "reader-1")
-        mode = request.form.get("mode", "reader")
+        reader_id = form_reader_id()
+        mode = form_mode()
         loan_id = request.form.get("loan_id", "")
         try:
             loan = ctx.loan_service.return_loan(loan_id)
             overdue = 0
             if loan.returned_at is not None:
                 overdue = calendar_overdue_days(loan.due_at, loan.returned_at)
-            title = ctx.books.get_by_id(loan.book_id)
-            name = title.title if title else loan.book_id
-            msg = f"«{name}» повернено. Штраф: {loan.penalty_amount}"
-            if ctx.observer.notifications:
-                last = ctx.observer.notifications[-1]
-                queued_book = ctx.books.get_by_id(last[0])
-                msg += f" | Черга: {queued_book.title if queued_book else last[0]}"
-            flash(msg, "success")
+            flash("Книгу повернено.", "success")
             if loan.penalty_amount > 0:
                 ctx.auto_blocking.maybe_suspend_reader(
                     loan.user_id,
@@ -163,20 +194,20 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
 
     @app.post("/reserve")
     def reserve():
-        reader_id = request.form.get("reader_id", "reader-1")
-        mode = request.form.get("mode", "reader")
-        book_id = request.form.get("book_id", "")
+        reader_id = form_reader_id()
+        mode = form_mode()
+        book_id = pick_book_id(request.form.get("book_id", ""), book_ids())
         try:
-            res = ctx.reservation_service.enqueue(reader_id, book_id)
-            flash(f"У черзі: #{res.sequence} ({res.id})", "success")
+            ctx.reservation_service.enqueue(reader_id, book_id)
+            flash("Додано до черги резерву.", "success")
         except DomainError as exc:
             flash(safe_error_message(exc), "error")
         return redirect_back(reader_id, mode)
 
     @app.post("/cancel-reservation")
     def cancel_reservation():
-        reader_id = request.form.get("reader_id", "reader-1")
-        mode = request.form.get("mode", "reader")
+        reader_id = form_reader_id()
+        mode = form_mode()
         reservation_id = request.form.get("reservation_id", "")
         try:
             ctx.reservation_service.cancel(reader_id, reservation_id)
@@ -188,31 +219,35 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
     @app.post("/block")
     def block_reader():
         if not require_librarian_mode():
-            return redirect_back(request.form.get("reader_id", "reader-1"), "reader")
-        target_id = request.form.get("target_reader_id", "")
-        days = int(request.form.get("days", "7"))
+            return redirect_back(form_reader_id(), "reader")
+        target_id = pick_reader_id(
+            request.form.get("target_reader_id", ""),
+            reader_ids(),
+            default_reader_id(),
+        )
+        days = clamp_block_days(request.form.get("days", "7"))
         try:
             until = ctx.clock.now() + timedelta(days=days)
             ctx.admin_service.block_reader_until(LIBRARIAN_ID, target_id, until)
-            target = ctx.users.get_by_id(target_id)
-            name = target.name if target else target_id
-            flash(f"Читача {name} заблоковано на {days} дн.", "success")
+            flash("Читача заблоковано.", "success")
         except DomainError as exc:
             flash(safe_error_message(exc), "error")
-        return redirect_back(request.form.get("reader_id", "reader-1"), "librarian")
+        return redirect_back(form_reader_id(), "librarian")
 
     @app.post("/unblock")
     def unblock_reader():
         if not require_librarian_mode():
-            return redirect_back(request.form.get("reader_id", "reader-1"), "reader")
-        target_id = request.form.get("target_reader_id", "")
+            return redirect_back(form_reader_id(), "reader")
+        target_id = pick_reader_id(
+            request.form.get("target_reader_id", ""),
+            reader_ids(),
+            default_reader_id(),
+        )
         try:
             ctx.admin_service.unblock_reader(LIBRARIAN_ID, target_id)
-            target = ctx.users.get_by_id(target_id)
-            name = target.name if target else target_id
-            flash(f"Читача {name} розблоковано.", "success")
+            flash("Читача розблоковано.", "success")
         except DomainError as exc:
             flash(safe_error_message(exc), "error")
-        return redirect_back(request.form.get("reader_id", "reader-1"), "librarian")
+        return redirect_back(form_reader_id(), "librarian")
 
     return app
