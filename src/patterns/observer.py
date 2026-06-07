@@ -6,7 +6,9 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class BookReturnObserver(Protocol):
-    def on_book_available(self, book_id: str, available_copies: int) -> None: ...
+    def on_book_available(
+        self, book_id: str, available_copies: int
+    ) -> tuple[str, str, int] | None: ...
 
 
 @dataclass
@@ -23,6 +25,10 @@ class BookAvailabilitySubject:
         if observer in self._observers:
             self._observers.remove(observer)
 
-    def notify(self, book_id: str, available_copies: int) -> None:
+    def notify(self, book_id: str, available_copies: int) -> list[tuple[str, str, int]]:
+        events: list[tuple[str, str, int]] = []
         for o in self._observers[:]:
-            o.on_book_available(book_id, available_copies)
+            event = o.on_book_available(book_id, available_copies)
+            if event is not None:
+                events.append(event)
+        return events

@@ -21,8 +21,7 @@ def log_borrow(ctx: LibraryContext, reader_id: str, book_id: str) -> None:
 
 
 def log_return(ctx: LibraryContext, loan_id: str) -> None:
-    notif_before = len(ctx.observer.notifications)
-    loan = ctx.loan_service.return_loan(loan_id)
+    loan, availability_events = ctx.loan_service.return_loan_with_events(loan_id)
     if loan.returned_at is not None and loan.penalty_amount > 0:
         overdue = calendar_overdue_days(loan.due_at, loan.returned_at)
         ctx.auto_blocking.maybe_suspend_reader(
@@ -34,9 +33,8 @@ def log_return(ctx: LibraryContext, loan_id: str) -> None:
         )
     else:
         log_event(ctx, "UC-02 Повернення вчасно, штраф 0 грн")
-    if len(ctx.observer.notifications) > notif_before:
-        last = ctx.observer.notifications[-1]
-        log_event(ctx, f"UC-05 Observer: книга {last[0]} доступна для {last[1]}")
+    for book_id, user_id, _copies in availability_events:
+        log_event(ctx, f"UC-05 Observer: книга {book_id} доступна для {user_id}")
 
 
 def flash_advance_time(ctx: LibraryContext, days: int) -> None:

@@ -69,11 +69,15 @@ class ReservationQueueObserver(BookReturnObserver):
         self._res = reservations
         self.notifications: list[tuple[str, str, int]] = []
 
-    def on_book_available(self, book_id: str, available_copies: int) -> None:
+    def on_book_available(
+        self, book_id: str, available_copies: int
+    ) -> tuple[str, str, int] | None:
         if available_copies <= 0:
-            return
+            return None
         q = self._res.queue_for_book(book_id)
         if not q:
-            return
+            return None
         head = q[0]
-        self.notifications.append((book_id, head.user_id, available_copies))
+        event = (book_id, head.user_id, available_copies)
+        self.notifications.append(event)
+        return event

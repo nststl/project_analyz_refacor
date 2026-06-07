@@ -131,6 +131,12 @@ class LoanService:
         return loan
 
     def return_loan(self, loan_id: str, returned_at: datetime | None = None) -> Loan:
+        loan, _events = self.return_loan_with_events(loan_id, returned_at)
+        return loan
+
+    def return_loan_with_events(
+        self, loan_id: str, returned_at: datetime | None = None
+    ) -> tuple[Loan, list[tuple[str, str, int]]]:
         loan = self._loans.get_by_id(loan_id)
         if loan is None:
             raise LoanNotFoundError(loan_id)
@@ -150,8 +156,8 @@ class LoanService:
         self._loans.save(loan)
 
         self._increment_book(book)
-        self._availability.notify(book.id, book.available_copies)
-        return loan
+        events = self._availability.notify(book.id, book.available_copies)
+        return loan, events
 
     def active_loans_for(self, user_id: str) -> list[Loan]:
         return self._loans.list_active_by_user(user_id)
