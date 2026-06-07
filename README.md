@@ -82,9 +82,9 @@ docker run --rm -v "%cd%/reports:/app/reports" -v "%cd%/htmlcov:/app/htmlcov" li
 
 GitHub → **Settings → Secrets → Actions** → оновити **`SONAR_TOKEN`** новим токеном → **Re-run** workflow.
 
-### 3. Якщо в логах: `Analysis report uploaded`, потім `Project not found`
+### 3. Помилка `Organization is not allowed to access data from non main branches` (HTTP 403)
 
-Скан **успішний**, падає лише **очікування Quality Gate** → заміни **`SONAR_TOKEN`** на **user token** з кроку 2 (не вузький CI-токен одного проєкту).
+На **Free plan** SonarCloud не можна читати Quality Gate для гілки `main` як окремої branch-аналітики. CI вимикає автоконфіг гілки для push (`-Dsonar.branch.autoconfig.disabled=true`). Токен при цьому має бути **user token** (див. крок 2).
 
 Перевір результат: [проєкт у SonarCloud](https://sonarcloud.io/project/overview?id=nststl_project_analyz_refacor).
 

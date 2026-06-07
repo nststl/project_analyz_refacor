@@ -60,22 +60,35 @@ jobs:
             exit 1
           fi
 
-      # Вузький CI-токен з майстра «Other CI» вміє лише upload; Quality Gate API повертає 404.
       - name: Verify SONAR_TOKEN can read Quality Gate API
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
+          # Без &branch= — mainline на Free plan; &branch=main дає 403 для private org
           HTTP_CODE=$(curl -s -o /tmp/sonar-api.json -w "%{http_code}" \
             -u "${SONAR_TOKEN}:" \
-            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=nststl_project_analyz_refacor&branch=main")
+            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=nststl_project_analyz_refacor")
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::SONAR_TOKEN не підходить для Quality Gate (HTTP ${HTTP_CODE}). Потрібен USER TOKEN: https://sonarcloud.io/account → Security → Generate Token. Або Organization Analysis Token: org nststl → Administration → Security. НЕ токен з «Analyze → Other CI»."
+            echo "::error::Quality Gate API недоступний (HTTP ${HTTP_CODE}). Перевір SONAR_TOKEN (user token з sonarcloud.io/account → Security)."
             cat /tmp/sonar-api.json 2>/dev/null || true
             exit 1
           fi
           echo "SONAR_TOKEN OK — Quality Gate API доступний"
 
-      - name: SonarCloud scan
+      # Free plan: push на main — без sonar.branch.name (інакше type:short → 403)
+      - name: SonarCloud scan (push to main)
+        if: github.event_name == 'push'
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: >
+            -Dsonar.branch.autoconfig.disabled=true
+            -Dsonar.qualitygate.wait=true
+
+      - name: SonarCloud scan (pull request)
+        if: github.event_name == 'pull_request'
         uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
