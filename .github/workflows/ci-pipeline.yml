@@ -34,6 +34,8 @@ jobs:
         run: mkdir -p reports htmlcov
 
       - name: Run tests with coverage and JUnit XML
+        env:
+          FLASK_TEST_SECRET_KEY: pytest-ci-secret-not-for-production-use-only
         run: |
           pytest tests \
             --junitxml=reports/junit.xml \

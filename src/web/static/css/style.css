@@ -15,8 +15,8 @@
   --info-bg: #e3eef9;
   --radius: 14px;
   --shadow: 0 12px 40px rgba(26, 47, 42, 0.08);
-  --font-display: "Cormorant Garamond", Georgia, serif;
-  --font-ui: "Nunito Sans", system-ui, sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-ui: "Segoe UI", system-ui, sans-serif;
 }
 
 *,

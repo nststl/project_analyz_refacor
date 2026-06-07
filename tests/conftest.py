@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from typing import Callable
 
@@ -21,6 +22,8 @@ from storage.in_memory import (
     InMemoryUserRepository,
 )
 from utils.time_utils import ensure_aware_utc
+
+os.environ.setdefault("FLASK_TEST_SECRET_KEY", "0" * 64)
 
 
 class FrozenClock:

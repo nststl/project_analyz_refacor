@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -11,6 +10,7 @@ from models.enums import LoanState, Role
 from services.exceptions import DomainError
 from utils.time_utils import calendar_overdue_days
 from web.context import LibraryContext
+from web.security import resolve_flask_secret_key, safe_error_message
 
 LIBRARIAN_ID = "lib-1"
 
@@ -23,9 +23,18 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
         static_folder=str(root / "static"),
     )
     app.config["TESTING"] = testing
-    app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", os.urandom(32).hex())
+    app.config["SECRET_KEY"] = resolve_flask_secret_key(testing=testing)
     app.config["WTF_CSRF_ENABLED"] = not testing
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     CSRFProtect(app)
+
+    @app.after_request
+    def security_headers(response):  # noqa: ANN001
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
 
     def redirect_back(reader_id: str, mode: str = "reader", **extra: str) -> redirect:
         return redirect(url_for("index", reader_id=reader_id, mode=mode, **extra))
@@ -120,7 +129,7 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
             loan = ctx.loan_service.borrow(reader_id, book_id)
             flash(f"Видано: {loan.id}, повернути до {loan.due_at.date()}", "success")
         except DomainError as exc:
-            flash(str(exc), "error")
+            flash(safe_error_message(exc), "error")
         return redirect_back(reader_id, mode)
 
     @app.post("/return")
@@ -149,7 +158,7 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
                     ctx.clock.now(),
                 )
         except DomainError as exc:
-            flash(str(exc), "error")
+            flash(safe_error_message(exc), "error")
         return redirect_back(reader_id, mode)
 
     @app.post("/reserve")
@@ -161,7 +170,7 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
             res = ctx.reservation_service.enqueue(reader_id, book_id)
             flash(f"У черзі: #{res.sequence} ({res.id})", "success")
         except DomainError as exc:
-            flash(str(exc), "error")
+            flash(safe_error_message(exc), "error")
         return redirect_back(reader_id, mode)
 
     @app.post("/cancel-reservation")
@@ -173,7 +182,7 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
             ctx.reservation_service.cancel(reader_id, reservation_id)
             flash("Резерв скасовано.", "success")
         except DomainError as exc:
-            flash(str(exc), "error")
+            flash(safe_error_message(exc), "error")
         return redirect_back(reader_id, mode)
 
     @app.post("/block")
@@ -189,7 +198,7 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
             name = target.name if target else target_id
             flash(f"Читача {name} заблоковано на {days} дн.", "success")
         except DomainError as exc:
-            flash(str(exc), "error")
+            flash(safe_error_message(exc), "error")
         return redirect_back(request.form.get("reader_id", "reader-1"), "librarian")
 
     @app.post("/unblock")
@@ -203,7 +212,7 @@ def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
             name = target.name if target else target_id
             flash(f"Читача {name} розблоковано.", "success")
         except DomainError as exc:
-            flash(str(exc), "error")
+            flash(safe_error_message(exc), "error")
         return redirect_back(request.form.get("reader_id", "reader-1"), "librarian")
 
     return app

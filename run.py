@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import secrets
 import sys
 from pathlib import Path
 
@@ -13,6 +15,8 @@ from web.context import build_library_context  # noqa: E402
 
 
 def main() -> None:
+    if not os.environ.get("FLASK_SECRET_KEY"):
+        os.environ["FLASK_SECRET_KEY"] = secrets.token_hex(32)
     ctx = build_library_context(seed=True)
     app = create_app(ctx)
     print("Відкрий у браузері: http://127.0.0.1:5000")
