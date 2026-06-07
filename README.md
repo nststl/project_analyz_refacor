@@ -20,6 +20,20 @@
 | `src/storage` | Протоколи репозиторіїв + in-memory реалізації |
 | `src/patterns` | **Strategy** (штрафи), **Observer** (сповіщення про наявність книги) |
 | `src/utils` | Допоміжні функції (час, календарні дні прострочення) |
+| `src/web` | Веб-інтерфейс (Flask) поверх домену |
+
+## Запуск сайту (веб-інтерфейс)
+
+```powershell
+cd "d:\projects pycharm\kursova_nasti"
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python run.py
+```
+
+Відкрий у браузері: **http://127.0.0.1:5000**
+
+На сторінці можна: взяти книгу, повернути, поставити в резерв, заблокувати/розблокувати читача (демо бібліотекаря).
 
 ## Запуск тестів локально
 
@@ -32,7 +46,7 @@ pip install -r requirements.txt
 mkdir -p reports htmlcov       # Linux/macOS; у PowerShell: mkdir reports, htmlcov -Force
 
 pytest tests --junitxml=reports/junit.xml ^
-  --cov=models --cov=services --cov=storage --cov=patterns --cov=utils ^
+  --cov=models --cov=services --cov=storage --cov=patterns --cov=utils --cov=web ^
   --cov-report=xml:coverage.xml --cov-report=html:htmlcov
 ```
 
@@ -83,8 +97,4 @@ docker run --rm -v "%cd%/reports:/app/reports" -v "%cd%/htmlcov:/app/htmlcov" li
 ## Захист гілки (рекомендація)
 
 У GitHub: **Settings → Branches → Branch protection** для `kursova` / `main`: увімкни **Require status checks to pass** (обов’язковий job `build-test-analyze`) та заборону merge при падінні тестів / coverage.
-
-## Легасі OMS (не входить у основну курсову)
-
-Старий демо-скрипт авіаційного OMS (SQLite + MongoDB) залишено в каталозі [`legacy/`](legacy/README.md) лише для історії; **основна здача** — бібліотечний in-memory код у `src/` та тести в `tests/`
 

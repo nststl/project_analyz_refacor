@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Бібліотека — in-memory</title>
+  <style>
+    :root { --bg: #f4f6fb; --card: #fff; --accent: #1a73e8; --err: #c5221f; --ok: #137333; }
+    * { box-sizing: border-box; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; margin: 0; background: var(--bg); color: #202124; }
+    header { background: var(--accent); color: #fff; padding: 1.2rem 2rem; }
+    main { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem 2rem; }
+    .card { background: var(--card); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    h2 { margin-top: 0; font-size: 1.1rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: .5rem; border-bottom: 1px solid #e8eaed; }
+    .flash { padding: .75rem 1rem; border-radius: 8px; margin-bottom: 1rem; }
+    .flash.success { background: #e6f4ea; color: var(--ok); }
+    .flash.error { background: #fce8e6; color: var(--err); }
+    button, .btn { background: var(--accent); color: #fff; border: none; padding: .4rem .8rem; border-radius: 6px; cursor: pointer; font-size: .9rem; }
+    button.secondary { background: #5f6368; }
+    select { padding: .35rem; }
+    .badge { display: inline-block; padding: .15rem .5rem; border-radius: 999px; font-size: .75rem; background: #e8f0fe; color: var(--accent); }
+    .blocked { color: var(--err); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Система керування бібліотекою</h1>
+    <p>In-memory домен: видача, повернення, резерв, штрафи, блокування</p>
+  </header>
+  <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+      <h2>Читач</h2>
+      <form method="get" action="/">
+        <label>Оберіть читача:
+          <select name="reader_id" onchange="this.form.submit()">
+            {% for u in users %}
+              <option value="{{ u.id }}" {% if u.id == reader_id %}selected{% endif %}>{{ u.name }} ({{ u.id }})</option>
+            {% endfor %}
+          </select>
+        </label>
+      </form>
+      {% if blocked %}<p class="blocked">Читача заблоковано — нові позики недоступні.</p>{% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Каталог книг</h2>
+      <table>
+        <thead><tr><th>Назва</th><th>Категорія</th><th>Доступно</th><th>Черга</th><th>Дії</th></tr></thead>
+        <tbody>
+        {% for book in books %}
+          <tr>
+            <td>{{ book.title }}</td>
+            <td><span class="badge">{{ book.category.name }}</span></td>
+            <td>{{ book.available_copies }} / {{ book.total_copies }}</td>
+            <td>{{ queues[book.id]|length }}</td>
+            <td>
+              <form method="post" action="/borrow" style="display:inline">
+                <input type="hidden" name="reader_id" value="{{ reader_id }}">
+                <input type="hidden" name="book_id" value="{{ book.id }}">
+                <button type="submit">Взяти</button>
+              </form>
+              <form method="post" action="/reserve" style="display:inline">
+                <input type="hidden" name="reader_id" value="{{ reader_id }}">
+                <input type="hidden" name="book_id" value="{{ book.id }}">
+                <button type="submit" class="secondary">Резерв</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Активні позики</h2>
+      {% if active_loans %}
+      <table>
+        <thead><tr><th>ID</th><th>Книга</th><th>До</th><th></th></tr></thead>
+        <tbody>
+        {% for loan in active_loans %}
+          <tr>
+            <td>{{ loan.id }}</td>
+            <td>{{ loan.book_id }}</td>
+            <td>{{ loan.due_at.date() }}</td>
+            <td>
+              <form method="post" action="/return">
+                <input type="hidden" name="reader_id" value="{{ reader_id }}">
+                <input type="hidden" name="loan_id" value="{{ loan.id }}">
+                <button type="submit">Повернути</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p>Немає активних позик.</p>{% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Бібліотекар (демо)</h2>
+      <form method="post" action="/block" style="display:inline">
+        <input type="hidden" name="reader_id" value="{{ reader_id }}">
+        <label>Днів блокування: <input type="number" name="days" value="7" min="1" max="90" style="width:4rem"></label>
+        <button type="submit" class="secondary">Заблокувати</button>
+      </form>
+      <form method="post" action="/unblock" style="display:inline; margin-left:.5rem">
+        <input type="hidden" name="reader_id" value="{{ reader_id }}">
+        <button type="submit">Розблокувати</button>
+      </form>
+    </div>
+
+    {% if notifications %}
+    <div class="card">
+      <h2>Observer: сповіщення про наявність</h2>
+      <ul>
+        {% for book_id, user_id, copies in notifications %}
+          <li>Книга {{ book_id }} — наступний у черзі: {{ user_id }} ({{ copies }} прим.)</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </main>
+</body>
+</html>

@@ -1,5 +1,4 @@
-# Runtime: stdlib only (in-memory domain)
-# Dev / CI
+flask>=3.0
 pytest>=8.0
 pytest-cov>=4.1
 pytest-xdist>=3.5

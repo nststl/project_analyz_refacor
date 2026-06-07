@@ -8,7 +8,9 @@ version = "1.0.0"
 description = "In-memory library domain: loans, reservations, penalties (course project)"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+  "flask>=3.0",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -27,7 +29,7 @@ addopts = "-q --strict-markers --tb=short"
 junit_family = "xunit2"
 
 [tool.coverage.run]
-source = ["models", "services", "storage", "patterns", "utils"]
+source = ["models", "services", "storage", "patterns", "utils", "web"]
 branch = true
 omit = ["*/tests/*"]
 

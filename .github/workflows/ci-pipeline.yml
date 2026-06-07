@@ -37,7 +37,7 @@ jobs:
         run: |
           pytest tests \
             --junitxml=reports/junit.xml \
-            --cov=models --cov=services --cov=storage --cov=patterns --cov=utils \
+            --cov=models --cov=services --cov=storage --cov=patterns --cov=utils --cov=web \
             --cov-report=xml:coverage.xml \
             --cov-report=html:htmlcov
 

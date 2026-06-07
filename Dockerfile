@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 RUN mkdir -p reports htmlcov
 
-CMD ["pytest", "tests", "-q", "--junitxml=reports/junit.xml", "--cov=models", "--cov=services", "--cov=storage", "--cov=patterns", "--cov=utils", "--cov-report=xml:coverage.xml", "--cov-report=html:htmlcov"]
+CMD ["pytest", "tests", "-q", "--junitxml=reports/junit.xml", "--cov=models", "--cov=services", "--cov=storage", "--cov=patterns", "--cov=utils", "--cov=web", "--cov-report=xml:coverage.xml", "--cov-report=html:htmlcov"]
