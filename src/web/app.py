@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 from datetime import timedelta
 from pathlib import Path
 
 from flask import Flask, flash, redirect, render_template, request, url_for
+from flask_wtf.csrf import CSRFProtect
 
 from models.enums import LoanState, Role
 from services.exceptions import DomainError
@@ -13,14 +15,17 @@ from web.context import LibraryContext
 LIBRARIAN_ID = "lib-1"
 
 
-def create_app(ctx: LibraryContext) -> Flask:
+def create_app(ctx: LibraryContext, *, testing: bool = False) -> Flask:
     root = Path(__file__).parent
     app = Flask(
         __name__,
         template_folder=str(root / "templates"),
         static_folder=str(root / "static"),
     )
-    app.secret_key = "library-demo-secret-change-in-production"
+    app.config["TESTING"] = testing
+    app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", os.urandom(32).hex())
+    app.config["WTF_CSRF_ENABLED"] = not testing
+    CSRFProtect(app)
 
     def redirect_back(reader_id: str, mode: str = "reader", **extra: str) -> redirect:
         return redirect(url_for("index", reader_id=reader_id, mode=mode, **extra))

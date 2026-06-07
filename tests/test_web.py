@@ -9,8 +9,7 @@ from web.context import build_library_context
 @pytest.fixture
 def client():
     ctx = build_library_context(seed=True)
-    app = create_app(ctx)
-    app.config["TESTING"] = True
+    app = create_app(ctx, testing=True)
     return app.test_client(), ctx
 
 

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from '_macros.html' import csrf_field %}
 
 {% block title %}{% if mode == 'librarian' %}Бібліотекар{% else %}Каталог{% endif %} — Освітня бібліотека{% endblock %}
 
@@ -79,6 +80,7 @@
               <td>{{ row.reservations }}</td>
               <td class="actions-cell">
                 <form class="inline-form" method="post" action="/block">
+                  {{ csrf_field() }}
                   <input type="hidden" name="mode" value="librarian">
                   <input type="hidden" name="reader_id" value="{{ reader_id }}">
                   <input type="hidden" name="target_reader_id" value="{{ row.user.id }}">
@@ -86,6 +88,7 @@
                   <button type="submit" class="btn btn-danger btn-sm">Блок</button>
                 </form>
                 <form method="post" action="/unblock" style="display:inline">
+                  {{ csrf_field() }}
                   <input type="hidden" name="mode" value="librarian">
                   <input type="hidden" name="reader_id" value="{{ reader_id }}">
                   <input type="hidden" name="target_reader_id" value="{{ row.user.id }}">
@@ -141,6 +144,7 @@
         <li>
           <span><strong>{{ title }}</strong> · #{{ res.sequence }}</span>
           <form method="post" action="/cancel-reservation">
+            {{ csrf_field() }}
             <input type="hidden" name="mode" value="reader">
             <input type="hidden" name="reader_id" value="{{ reader_id }}">
             <input type="hidden" name="reservation_id" value="{{ res.id }}">
@@ -195,6 +199,7 @@
               {% if q > 0 %}<p class="queue-hint">У черзі: {{ q }}</p>{% else %}<p class="queue-hint">&nbsp;</p>{% endif %}
               <div class="book-actions">
                 <form method="post" action="/borrow">
+                  {{ csrf_field() }}
                   <input type="hidden" name="mode" value="reader">
                   <input type="hidden" name="reader_id" value="{{ reader_id }}">
                   <input type="hidden" name="book_id" value="{{ book.id }}">
@@ -202,6 +207,7 @@
                     {% if book.available_copies == 0 or blocked or book.category.name == 'REFERENCE' %}disabled{% endif %}>Взяти</button>
                 </form>
                 <form method="post" action="/reserve">
+                  {{ csrf_field() }}
                   <input type="hidden" name="mode" value="reader">
                   <input type="hidden" name="reader_id" value="{{ reader_id }}">
                   <input type="hidden" name="book_id" value="{{ book.id }}">
@@ -228,6 +234,7 @@
                 <span>Повернути до {{ loan.due_at.strftime('%d.%m.%Y') }}</span>
               </div>
               <form method="post" action="/return">
+                {{ csrf_field() }}
                 <input type="hidden" name="mode" value="reader">
                 <input type="hidden" name="reader_id" value="{{ reader_id }}">
                 <input type="hidden" name="loan_id" value="{{ loan.id }}">
