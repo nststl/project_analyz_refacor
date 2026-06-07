@@ -18,7 +18,7 @@ def main() -> None:
     if not os.environ.get("FLASK_SECRET_KEY"):
         os.environ["FLASK_SECRET_KEY"] = secrets.token_hex(32)
     ctx = build_library_context(seed=True)
-    app = create_app(ctx, session_key=os.environ["FLASK_SECRET_KEY"])
+    app = create_app(ctx)
     print("Відкрий у браузері: http://127.0.0.1:5000")
     print("(у локальній мережі: http://<твій-IP>:5000)")
     app.run(host="0.0.0.0", port=5000, debug=False)

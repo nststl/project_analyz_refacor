@@ -24,5 +24,5 @@ class BookAvailabilitySubject:
             self._observers.remove(observer)
 
     def notify(self, book_id: str, available_copies: int) -> None:
-        for o in list(self._observers):
+        for o in self._observers[:]:
             o.on_book_available(book_id, available_copies)

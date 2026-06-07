@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-
 from services.exceptions import (
     BookNotFoundError,
     DomainError,
@@ -64,15 +62,3 @@ def clamp_block_days(raw: str, *, default: int = 7, max_days: int = 90) -> int:
     except (TypeError, ValueError):
         return default
     return max(1, min(max_days, days))
-
-
-def resolve_flask_secret_key(*, testing: bool) -> str:
-    if testing:
-        key = os.environ.get("FLASK_TEST_SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY")
-        if not key:
-            raise RuntimeError("Set FLASK_TEST_SECRET_KEY for tests")
-        return key
-    key = os.environ.get("FLASK_SECRET_KEY")
-    if not key:
-        raise RuntimeError("FLASK_SECRET_KEY environment variable is required")
-    return key

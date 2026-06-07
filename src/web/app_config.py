@@ -4,11 +4,13 @@ from flask import Flask
 from flask_wtf.csrf import CSRFProtect
 
 
-def configure_flask_app(app: Flask, *, testing: bool, session_key: str) -> None:
-    """Session signing key comes from caller (env in run.py / tests), not from source."""
+def configure_flask_app(app: Flask, *, testing: bool) -> None:
+    """Session signing key: FLASK_SECRET_KEY env (Flask config), never hard-coded in source."""
+    app.config.from_prefixed_env("FLASK")
+    if not app.secret_key:
+        raise RuntimeError("FLASK_SECRET_KEY environment variable is required")
     app.config["TESTING"] = testing
-    app.secret_key = session_key
-    app.config["WTF_CSRF_ENABLED"] = not testing
+    app.config["WTF_CSRF_ENABLED"] = True
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     CSRFProtect(app)

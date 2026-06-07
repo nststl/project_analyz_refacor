@@ -24,7 +24,7 @@ from storage.in_memory import (
 )
 from utils.time_utils import ensure_aware_utc
 
-os.environ.setdefault("FLASK_TEST_SECRET_KEY", secrets.token_hex(32))
+os.environ.setdefault("FLASK_SECRET_KEY", secrets.token_hex(32))
 
 
 class FrozenClock:
