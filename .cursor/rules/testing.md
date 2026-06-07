@@ -1,13 +1,14 @@
-# Стратегія тестування та звітів
+# Стратегія тестування
 
-## Фреймворк
+## Інструменти
 
-- **pytest** — модульні та інтеграційні тести в `tests/`.
-- **pytest-cov** + **coverage.py** — XML і HTML для людей і для Sonar.
+| Інструмент | Призначення |
+|------------|-------------|
+| **pytest** | Модульні та інтеграційні тести (`tests/`) |
+| **pytest-cov** | Покриття коду (XML + HTML) |
+| **coverage.py** | Звіт для SonarCloud |
 
-> Для Java/JaCoCo аналог той самий за змістом: **JUnit XML + coverage XML/HTML**; у Python це **`reports/junit.xml`** + **`coverage.xml`** + **`htmlcov/`**.
-
-## Команди (локально / CI)
+## Команди
 
 ```bash
 mkdir -p reports htmlcov
@@ -18,18 +19,21 @@ pytest tests \
   --cov-report=html:htmlcov
 ```
 
-Поріг **fail_under** заданий у `pyproject.toml` (не нижче **70%**).
+Поріг: **70%** (`pyproject.toml` → `tool.coverage.report.fail_under`).
 
-## Що тестувати в пріоритеті
+## Пріоритети покриття
 
-- **Граничні значення**: 0 прострочених днів, рівно на дедлайні, +1 день; 0 доступних примірників; ліміт активних позик.
-- **Ролі**: читач не може виконувати дії бібліотекаря і навпаки.
-- **Черга резерву**: порядок FIFO за `sequence`, заборона дублікату резерву тим самим читачем.
-- **Observer**: після `return_loan` є сповіщення, якщо є черга.
-- **Mock**: ізоляція шару сервісу від конкретного репозиторію (`unittest.mock.Mock` / `MagicMock` spec за `Protocol`).
+- Граничні значення: 0 / +1 день прострочення, ліміт позик, 0 примірників.
+- Ролі: читач vs бібліотекар.
+- FIFO-черга, заборона дублікату резерву.
+- Observer: подія після `return_loan_with_events`.
+- Mock-ізоляція сервісів (`test_mock_isolation.py`).
+- Веб-маршрути: CSRF, симулятор часу, стратегії штрафів.
 
-## Sonar
+## Звіти для SonarCloud
 
-- `coverage.xml` у корені після прогону.
-- `reports/junit.xml` для імпорту тестів у Sonar.
-- Шляхи вказані в `sonar-project.properties`.
+- `coverage.xml` — корінь проєкту після pytest.
+- `reports/junit.xml` — результати тестів.
+- Шляхи: `sonar-project.properties`.
+
+Детальні метрики: [`docs/quality.md`](../docs/quality.md).

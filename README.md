@@ -1,100 +1,110 @@
-# Система керування бібліотекою (in-memory)
+# Library Management System
 
 [![CI](https://github.com/nststl/project_analyz_refacor/actions/workflows/ci-pipeline.yml/badge.svg?branch=main)](https://github.com/nststl/project_analyz_refacor/actions/workflows/ci-pipeline.yml?query=branch%3Amain)
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=nststl_project_analyz_refacor&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=nststl_project_analyz_refacor)
 
-> **SonarCloud (ваш акаунт `nststl`):** секрет **`SONAR_TOKEN`** у GitHub. Проєкт у [SonarCloud](https://sonarcloud.io) з ключем **`nststl_project_analyz_refacor`**, org **`nststl`**. CI чекає **Quality Gate**.
+In-memory система керування публічною бібліотекою: облік примірників, позик, резервів, штрафів і блокувань. Доменна логіка відокремлена від веб-інтерфейсу; дані зберігаються в оперативній пам’яті без зовнішніх БД.
 
-## Що це за проєкт
+**Репозиторій:** [github.com/nststl/project_analyz_refacor](https://github.com/nststl/project_analyz_refacor)
 
-Доменна модель **бібліотеки**: читачі та бібліотекарі, **видача** та **повернення** примірників, **черга резерву** (FIFO), **нарахування штрафів** за прострочення (кілька стратегій), **блокування читача** (ручне бібліотекарем та автоматичне за політикою після серйозної заборгованості). Усі дані — **in-memory** (без зовнішніх БД та HTTP API), згідно з вимогами курсової.
+## Можливості
 
-Детальний опис вимог, акторів і сценаріїв: [`docs/requirements.md`](docs/requirements.md). UML-діаграми (Mermaid): [`docs/diagrams/`](docs/diagrams/).
+- **Ролі:** читач і бібліотекар (окремі сценарії в UI).
+- **Позики:** видача, повернення, ліміт одночасних позик (2 книги на читача).
+- **Резерви:** FIFO-черга на книгу; сповіщення наступного читача через **Observer**.
+- **Штрафи:** нарахування за прострочення; вибір стратегії **Linear** / **Tiered** (Strategy).
+- **Блокування:** вручну (бібліотекар) та автоматично за політикою заборгованості.
+- **Симулятор часу:** перемотка дати для перевірки прострочення, штрафів і автоблокування.
+- **Якість коду:** 380+ тестів, coverage ≥ 70%, SonarCloud Quality Gate, CI-артефакти.
 
-## Архітектура (коротко)
+## Архітектура
 
-| Шар | Призначення |
-|-----|-------------|
-| `src/models` | Сутності та переліки |
-| `src/services` | Бізнес-логіка (кредити, резерви, адміністрування) |
-| `src/storage` | Протоколи репозиторіїв + in-memory реалізації |
-| `src/patterns` | **Strategy** (штрафи), **Observer** (сповіщення про наявність книги) |
-| `src/utils` | Допоміжні функції (час, календарні дні прострочення) |
-| `src/web` | Веб-інтерфейс (Flask) поверх домену |
+| Шар | Каталог | Відповідальність |
+|-----|---------|------------------|
+| Models | `src/models` | Сутності, переліки |
+| Storage | `src/storage` | `Protocol` репозиторіїв, in-memory реалізації |
+| Services | `src/services` | Бізнес-сценарії (позики, резерви, адміністрування) |
+| Patterns | `src/patterns` | GoF: **Strategy** (штрафи), **Observer** (наявність книги) |
+| Utils | `src/utils` | Робота з датами, календарні дні прострочення |
+| Web | `src/web` | Flask UI — тонкий шар над сервісами |
 
-## Запуск сайту (веб-інтерфейс)
+Детальніше: [`docs/requirements.md`](docs/requirements.md), діаграми: [`docs/diagrams/`](docs/diagrams/), метрики якості: [`docs/quality.md`](docs/quality.md).
 
-```powershell
-cd "d:\projects pycharm\kursova_nasti"
-.\.venv\Scripts\Activate.ps1
+## Структура репозиторію
+
+```
+src/                    # Вихідний код (models, services, storage, patterns, web)
+tests/                  # Модульні та інтеграційні тести (pytest)
+docs/                   # Вимоги, UML-діаграми, звіт якості
+.github/workflows/      # CI: тести, coverage, SonarCloud, артефакти
+.cursor/rules/          # Контекст для AI-асистентів (архітектура, тестування)
+run.py                  # Точка входу веб-додатку
+Dockerfile              # Ізольований прогін тестів
+sonar-project.properties
+pyproject.toml
+```
+
+## Швидкий старт
+
+### Вимоги
+
+- Python 3.10+
+- Git
+
+### Встановлення та веб-інтерфейс
+
+```bash
+git clone https://github.com/nststl/project_analyz_refacor.git
+cd project_analyz_refacor
+
+python -m venv .venv
+# Windows:  .venv\Scripts\activate
+# Linux/macOS:  source .venv/bin/activate
+
 pip install -r requirements.txt
 python run.py
 ```
 
-Відкрий у браузері: **http://127.0.0.1:5000** (сайт також слухає `0.0.0.0:5000` — можна зайти з іншого пристрою в тій самій мережі).
+Відкрити в браузері: **http://127.0.0.1:5000**
 
-**Веб-інтерфейс:** режими **Читач** / **Бібліотекар** (читач не може заблокувати себе), каталог з пошуком, резерви зі скасуванням, історія штрафів, сповіщення Observer.
-
-Повний чеклист вимог курсової: [`docs/compliance.md`](docs/compliance.md).
-
-## Запуск тестів локально
+### Тести та покриття
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate    # Linux/macOS
+mkdir -p reports htmlcov   # PowerShell: mkdir reports, htmlcov -Force
 
-pip install -r requirements.txt
-mkdir -p reports htmlcov       # Linux/macOS; у PowerShell: mkdir reports, htmlcov -Force
-
-pytest tests --junitxml=reports/junit.xml ^
-  --cov=models --cov=services --cov=storage --cov=patterns --cov=utils --cov=web ^
-  --cov-report=xml:coverage.xml --cov-report=html:htmlcov
+pytest tests \
+  --junitxml=reports/junit.xml \
+  --cov=models --cov=services --cov=storage --cov=patterns --cov=utils --cov=web \
+  --cov-report=xml:coverage.xml \
+  --cov-report=html:htmlcov
 ```
 
-Поріг покриття **70%** задано в `pyproject.toml` (`tool.coverage.report.fail_under`). Кількість тестів — **200+** (параметризовані матриці + модульні/інтеграційні).
+HTML-звіт покриття: `htmlcov/index.html`. Поріг **70%** — у `pyproject.toml`.
 
-## Docker
+### Docker
 
 ```bash
-docker build -t library-ci .
-docker run --rm -v "%cd%/reports:/app/reports" -v "%cd%/htmlcov:/app/htmlcov" library-ci
+docker build -t library-system .
+docker run --rm -v "$PWD/reports:/app/reports" -v "$PWD/htmlcov:/app/htmlcov" library-system
 ```
 
-(На Linux замість `%cd%` використай `$PWD`.)
+## CI/CD
 
-## SonarCloud (ваш акаунт)
+Workflow **CI Quality Gate** (`.github/workflows/ci-pipeline.yml`) на кожен push/PR у `main`:
 
-### 1. Проєкт на [sonarcloud.io](https://sonarcloud.io)
+1. Запуск pytest + coverage + JUnit XML  
+2. Завантаження артефакту **`quality-reports`** (`coverage.xml`, `reports/junit.xml`, `htmlcov/`)  
+3. Аналіз SonarCloud і перевірка Quality Gate  
 
-1. **+ → Analyze new project** → репозиторій **`nststl/project_analyz_refacor`**.
-2. **Project key** = **`nststl_project_analyz_refacor`**, **organization** = **`nststl`** (як у [`sonar-project.properties`](sonar-project.properties)).
-3. **Project Settings → DevOps Platform integration → GitHub** — прив’яжи репозиторій (усуває `Detected project binding: NONEXISTENT` у CI).
+SonarCloud: проєкт `nststl_project_analyz_refacor`, організація `nststl`.
 
-### 2. Токен для GitHub (найчастіша причина падіння CI)
+## Документація
 
-Симптом: `Analysis report uploaded`, потім `Project not found` на Quality Gate.
-
-**Не підходить:** токен з майстра **Analyze → GitHub Actions → Other CI** (лише upload, без API Quality Gate).
-
-**Підходить (один з варіантів):**
-
-1. **User token:** [sonarcloud.io/account](https://sonarcloud.io/account) → **Security** → **Generate Token**
-2. **Organization token:** org **nststl** → **Administration** → **Security** → **Generate Token** (analysis token для org)
-
-GitHub → **Settings → Secrets → Actions** → оновити **`SONAR_TOKEN`** новим токеном → **Re-run** workflow.
-
-### 3. Помилка `Organization is not allowed to access data from non main branches` (HTTP 403)
-
-На **Free plan** SonarCloud не можна читати Quality Gate для гілки `main` як окремої branch-аналітики. CI вимикає автоконфіг гілки для push (`-Dsonar.branch.autoconfig.disabled=true`). Токен при цьому має бути **user token** (див. крок 2).
-
-Перевір результат: [проєкт у SonarCloud](https://sonarcloud.io/project/overview?id=nststl_project_analyz_refacor).
-
-## Артефакти CI
-
-Після кожного успішного прогону workflow **CI Quality Gate** у GitHub Actions з’являється артефакт **`quality-reports`** (ZIP): `coverage.xml`, `reports/junit.xml`, каталог `htmlcov/`.
-
-## Захист гілки (рекомендація)
-
-У GitHub: **Settings → Branches → Branch protection** для **`main`**: увімкни **Require status checks to pass** (job `build-test-analyze`).
-
+| Файл | Зміст |
+|------|--------|
+| [`docs/requirements.md`](docs/requirements.md) | Предметна область, актори, use cases, правила |
+| [`docs/quality.md`](docs/quality.md) | Тести, покриття, SonarCloud, CI-артефакти |
+| [`docs/diagrams/use_cases.md`](docs/diagrams/use_cases.md) | Діаграма прецедентів |
+| [`docs/diagrams/domain_model.md`](docs/diagrams/domain_model.md) | Концептуальна модель |
+| [`docs/diagrams/class_diagram.md`](docs/diagrams/class_diagram.md) | Класи та залежності |
+| [`docs/diagrams/architecture.md`](docs/diagrams/architecture.md) | Шари та потік даних |

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "library-management-system"
 version = "1.0.0"
-description = "In-memory library domain: loans, reservations, penalties (course project)"
+description = "In-memory library management: loans, reservations, penalties, web UI"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

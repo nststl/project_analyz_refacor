@@ -2,48 +2,26 @@
 
 ## Мета
 
-Імітація бібліотечної системи з **читачами** та **бібліотекарями**, обліком примірників книг, **позиками**, **чергою резерву** та **політикою штрафів** — усе в оперативній пам’яті через репозиторії за `Protocol`.
+Система керування бібліотекою з **читачами** та **бібліотекарями**, обліком примірників, **позиками**, **чергою резерву** та **політикою штрафів**. Дані — in-memory репозиторії за `Protocol`.
 
 ## Шари
 
-1. **`src/models`** — незмінні/прості структури даних: `User`, `Book`, `Loan`, `Reservation`, переліки `Role`, `BookCategory`, `LoanState`.
-2. **`src/storage/protocols.py`** — контракти `IUserRepository`, `IBookRepository`, `ILoanRepository`, `IReservationRepository`.
-3. **`src/storage/in_memory.py`** — реалізації на словниках і списках; без I/O.
-4. **`src/services`** — сценарії:
-   - `loan_service.py` — видача/повернення, обчислення прострочення, виклик **Strategy** штрафів, публікація події доступності через **Subject**.
-   - `reservation_service.py` — постановка в чергу, скасування, **Observer** для “наступного в черзі”.
-   - `user_administration.py` — блокування читача бібліотекарем.
-   - `auto_blocking.py` + `blocking_policy.py` — автоматичне блокування за правилами після великої заборгованості.
-5. **`src/patterns`** — GoF: `penalty_strategy.py`, `observer.py`.
-6. **`src/utils`** — чисті функції для дат (календарні дні прострочення).
-7. **`src/web`** — Flask UI (тонкий шар): викликає сервіси, без бізнес-логіки в шаблонах.
+1. **`src/models`** — `User`, `Book`, `Loan`, `Reservation`; переліки `Role`, `BookCategory`, `LoanState`.
+2. **`src/storage/protocols.py`** — `IUserRepository`, `IBookRepository`, `ILoanRepository`, `IReservationRepository`.
+3. **`src/storage/in_memory.py`** — реалізації на словниках; без I/O.
+4. **`src/services`**:
+   - `loan_service.py` — видача/повернення, Strategy штрафів, Observer через Subject.
+   - `reservation_service.py` — FIFO-черга, `ReservationQueueObserver`.
+   - `user_administration.py` — блокування бібліотекарем.
+   - `auto_blocking.py` + `blocking_policy.py` — автоблокування.
+5. **`src/patterns`** — `penalty_strategy.py`, `observer.py`.
+6. **`src/utils`** — календарні дні прострочення.
+7. **`src/web`** — Flask UI, `SimulatedClock`, симулятор часу, лог подій.
 
 ## Інверсія залежностей
 
-Сервіси приймають **інтерфейси** репозиторіїв і стратегій (через типізацію `Protocol`), а тести підставляють in-memory реалізації або mock-об’єкти.
+Сервіси приймають інтерфейси репозиторіїв і стратегій; тести підставляють in-memory або `unittest.mock`.
 
-## Потік (спрощено)
+## Діаграми
 
-```mermaid
-flowchart LR
-  subgraph Presentation["Тести / майбутній UI"]
-    T[pytest]
-  end
-  subgraph Services
-    LS[LoanService]
-    RS[ReservationService]
-    UA[UserAdministrationService]
-    AB[AutoBlockingService]
-  end
-  subgraph Storage
-    IR[InMemory Repositories]
-  end
-  T --> LS
-  T --> RS
-  T --> UA
-  T --> AB
-  LS --> IR
-  RS --> IR
-  UA --> IR
-  AB --> IR
-```
+Повний набір UML (Mermaid): `docs/diagrams/`.

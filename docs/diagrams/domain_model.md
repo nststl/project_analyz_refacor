@@ -1,37 +1,52 @@
-# Модель предметної області (концептуально)
+# Модель предметної області
 
 ```mermaid
 classDiagram
   class User {
-    +id
-    +name
-    +role
-    +blocked_until
-    +max_concurrent_loans
+    +String id
+    +String name
+    +Role role
+    +DateTime blocked_until
+    +int max_concurrent_loans
+    +is_blocked_at(when) bool
   }
   class Book {
-    +id
-    +title
-    +category
-    +total_copies
-    +available_copies
+    +String id
+    +String title
+    +BookCategory category
+    +int total_copies
+    +int available_copies
   }
   class Loan {
-    +id
-    +borrowed_at
-    +due_at
-    +returned_at
-    +penalty_amount
-    +state
+    +String id
+    +DateTime borrowed_at
+    +DateTime due_at
+    +DateTime returned_at
+    +Decimal penalty_amount
+    +LoanState state
   }
   class Reservation {
-    +id
-    +sequence
+    +String id
+    +int sequence
+  }
+  class Role {
+    <<enumeration>>
+    READER
+    LIBRARIAN
+  }
+  class BookCategory {
+    <<enumeration>>
+    STANDARD
+    RARE
+    REFERENCE
   }
   User "1" --> "*" Loan : оформлює
-  Book "1" --> "*" Loan : екземпляр
-  User "1" --> "*" Reservation : черга
-  Book "1" --> "*" Reservation : черга
+  Book "1" --> "*" Loan : примірник
+  User "1" --> "*" Reservation : у черзі
+  Book "1" --> "*" Reservation : на книгу
+  User --> Role
+  Book --> BookCategory
 ```
 
-Категорія книги впливає на коефіцієнти штрафу в **Strategy**.
+Категорія книги (`STANDARD`, `RARE`, `REFERENCE`) впливає на розрахунок штрафу в патерні **Strategy**.  
+`REFERENCE` не видаються назовні. Ліміт одночасних позик задається полем `max_concurrent_loans`.

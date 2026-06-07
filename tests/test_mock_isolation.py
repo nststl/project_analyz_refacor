@@ -1,4 +1,4 @@
-"""Isolated unit tests using unittest.mock (course requirement)."""
+"""Isolated unit tests using unittest.mock."""
 
 from __future__ import annotations
 
