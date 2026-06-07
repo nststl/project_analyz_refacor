@@ -69,12 +69,18 @@ docker run --rm -v "%cd%/reports:/app/reports" -v "%cd%/htmlcov:/app/htmlcov" li
 2. **Project key** = **`nststl_project_analyz_refacor`**, **organization** = **`nststl`** (як у [`sonar-project.properties`](sonar-project.properties)).
 3. **Project Settings → DevOps Platform integration → GitHub** — прив’яжи репозиторій (усуває `Detected project binding: NONEXISTENT` у CI).
 
-### 2. Токен для GitHub
+### 2. Токен для GitHub (найчастіша причина падіння CI)
 
-**Важливо:** не токен з майстра «Other CI» (він лише відправляє звіт).
+Симптом: `Analysis report uploaded`, потім `Project not found` на Quality Gate.
 
-1. [sonarcloud.io/account](https://sonarcloud.io/account) → **Security** → **Generate Token** (звичайний **user token**).
-2. GitHub → **Settings → Secrets → Actions** → **`SONAR_TOKEN`** = цей токен.
+**Не підходить:** токен з майстра **Analyze → GitHub Actions → Other CI** (лише upload, без API Quality Gate).
+
+**Підходить (один з варіантів):**
+
+1. **User token:** [sonarcloud.io/account](https://sonarcloud.io/account) → **Security** → **Generate Token**
+2. **Organization token:** org **nststl** → **Administration** → **Security** → **Generate Token** (analysis token для org)
+
+GitHub → **Settings → Secrets → Actions** → оновити **`SONAR_TOKEN`** новим токеном → **Re-run** workflow.
 
 ### 3. Якщо в логах: `Analysis report uploaded`, потім `Project not found`
 

@@ -60,6 +60,21 @@ jobs:
             exit 1
           fi
 
+      # Вузький CI-токен з майстра «Other CI» вміє лише upload; Quality Gate API повертає 404.
+      - name: Verify SONAR_TOKEN can read Quality Gate API
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          HTTP_CODE=$(curl -s -o /tmp/sonar-api.json -w "%{http_code}" \
+            -u "${SONAR_TOKEN}:" \
+            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=nststl_project_analyz_refacor&branch=main")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::SONAR_TOKEN не підходить для Quality Gate (HTTP ${HTTP_CODE}). Потрібен USER TOKEN: https://sonarcloud.io/account → Security → Generate Token. Або Organization Analysis Token: org nststl → Administration → Security. НЕ токен з «Analyze → Other CI»."
+            cat /tmp/sonar-api.json 2>/dev/null || true
+            exit 1
+          fi
+          echo "SONAR_TOKEN OK — Quality Gate API доступний"
+
       - name: SonarCloud scan
         uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
