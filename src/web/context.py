@@ -87,3 +87,7 @@ def _seed_demo_data(ctx: LibraryContext) -> None:
     ctx.books.save(Book("b1", "Python 101", BookCategory.STANDARD, 3, 3))
     ctx.books.save(Book("b2", "Clean Code", BookCategory.STANDARD, 1, 0))
     ctx.books.save(Book("b3", "Encyclopedia", BookCategory.REFERENCE, 1, 1))
+    ctx.books.save(Book("b4", "Design Patterns", BookCategory.STANDARD, 2, 2))
+    ctx.books.save(Book("b5", "Refactoring", BookCategory.STANDARD, 2, 1))
+    ctx.books.save(Book("b6", "Міфічний місяць", BookCategory.STANDARD, 1, 1))
+    ctx.books.save(Book("b7", "Довідник ISO", BookCategory.REFERENCE, 1, 1))

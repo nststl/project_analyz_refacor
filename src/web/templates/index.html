@@ -1,132 +1,267 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Бібліотека — in-memory</title>
-  <style>
-    :root { --bg: #f4f6fb; --card: #fff; --accent: #1a73e8; --err: #c5221f; --ok: #137333; }
-    * { box-sizing: border-box; }
-    body { font-family: "Segoe UI", system-ui, sans-serif; margin: 0; background: var(--bg); color: #202124; }
-    header { background: var(--accent); color: #fff; padding: 1.2rem 2rem; }
-    main { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem 2rem; }
-    .card { background: var(--card); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-    h2 { margin-top: 0; font-size: 1.1rem; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: .5rem; border-bottom: 1px solid #e8eaed; }
-    .flash { padding: .75rem 1rem; border-radius: 8px; margin-bottom: 1rem; }
-    .flash.success { background: #e6f4ea; color: var(--ok); }
-    .flash.error { background: #fce8e6; color: var(--err); }
-    button, .btn { background: var(--accent); color: #fff; border: none; padding: .4rem .8rem; border-radius: 6px; cursor: pointer; font-size: .9rem; }
-    button.secondary { background: #5f6368; }
-    select { padding: .35rem; }
-    .badge { display: inline-block; padding: .15rem .5rem; border-radius: 999px; font-size: .75rem; background: #e8f0fe; color: var(--accent); }
-    .blocked { color: var(--err); font-weight: 600; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Система керування бібліотекою</h1>
-    <p>In-memory домен: видача, повернення, резерв, штрафи, блокування</p>
-  </header>
-  <main>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% for category, message in messages %}
-        <div class="flash {{ category }}">{{ message }}</div>
-      {% endfor %}
-    {% endwith %}
+{% extends "base.html" %}
 
-    <div class="card">
-      <h2>Читач</h2>
-      <form method="get" action="/">
-        <label>Оберіть читача:
-          <select name="reader_id" onchange="this.form.submit()">
-            {% for u in users %}
-              <option value="{{ u.id }}" {% if u.id == reader_id %}selected{% endif %}>{{ u.name }} ({{ u.id }})</option>
+{% block title %}{% if mode == 'librarian' %}Бібліотекар{% else %}Каталог{% endif %} — Освітня бібліотека{% endblock %}
+
+{% block body %}
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">📚</div>
+      <div>
+        <h1>Освітня бібліотека</h1>
+        <p>Видача · резерв · повернення · онлайн-каталог</p>
+      </div>
+    </div>
+    <nav class="role-tabs" aria-label="Режим роботи">
+      <a href="{{ url_for('index', mode='reader', reader_id=reader_id, q=search_q) }}"
+         class="role-tab{% if mode == 'reader' %} active{% endif %}">👤 Читач</a>
+      <a href="{{ url_for('index', mode='librarian', reader_id=reader_id) }}"
+         class="role-tab{% if mode == 'librarian' %} active{% endif %}">🔑 Бібліотекар</a>
+    </nav>
+    {% if mode == 'reader' %}
+    <form class="reader-switch" method="get" action="/">
+      <input type="hidden" name="mode" value="reader">
+      {% if search_q %}<input type="hidden" name="q" value="{{ search_q }}">{% endif %}
+      <label for="reader_id">Увійти як</label>
+      <select id="reader_id" name="reader_id" onchange="this.form.submit()" aria-label="Оберіть читача">
+        {% for u in users %}
+          <option value="{{ u.id }}" {% if u.id == reader_id %}selected{% endif %}>{{ u.name }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% endif %}
+  </div>
+</header>
+
+<div class="page">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack page-flash" role="status">
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{% if category == 'success' %}✓{% else %}!{% endif %} {{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% if mode == 'librarian' %}
+  <div class="main-content full-width">
+    <section class="panel">
+      <div class="section-head">
+        <h2>Панель бібліотекаря</h2>
+        <p>{% if librarian %}{{ librarian.name }}{% else %}Бібліотекар{% endif %} — керування читачами (UC-06)</p>
+      </div>
+      <p class="hint-box">Читач <strong>не може</strong> заблокувати себе. Блокування доступне лише тут, у режимі бібліотекаря.</p>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Читач</th>
+              <th>Статус</th>
+              <th>Позики</th>
+              <th>Резерви</th>
+              <th>Дії</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in reader_rows %}
+            <tr>
+              <td><strong>{{ row.user.name }}</strong><br><span class="muted-sm">{{ row.user.id }}</span></td>
+              <td>
+                {% if row.blocked %}
+                  <span class="status-pill blocked">Заблоковано</span>
+                {% else %}
+                  <span class="status-pill ok">Активний</span>
+                {% endif %}
+              </td>
+              <td>{{ row.active_loans }}</td>
+              <td>{{ row.reservations }}</td>
+              <td class="actions-cell">
+                <form class="inline-form" method="post" action="/block">
+                  <input type="hidden" name="mode" value="librarian">
+                  <input type="hidden" name="reader_id" value="{{ reader_id }}">
+                  <input type="hidden" name="target_reader_id" value="{{ row.user.id }}">
+                  <input type="number" name="days" value="7" min="1" max="90" class="days-input" aria-label="Днів">
+                  <button type="submit" class="btn btn-danger btn-sm">Блок</button>
+                </form>
+                <form method="post" action="/unblock" style="display:inline">
+                  <input type="hidden" name="mode" value="librarian">
+                  <input type="hidden" name="reader_id" value="{{ reader_id }}">
+                  <input type="hidden" name="target_reader_id" value="{{ row.user.id }}">
+                  <button type="submit" class="btn btn-secondary btn-sm">Розблок</button>
+                </form>
+              </td>
+            </tr>
             {% endfor %}
-          </select>
-        </label>
-      </form>
-      {% if blocked %}<p class="blocked">Читача заблоковано — нові позики недоступні.</p>{% endif %}
-    </div>
-
-    <div class="card">
-      <h2>Каталог книг</h2>
-      <table>
-        <thead><tr><th>Назва</th><th>Категорія</th><th>Доступно</th><th>Черга</th><th>Дії</th></tr></thead>
-        <tbody>
-        {% for book in books %}
-          <tr>
-            <td>{{ book.title }}</td>
-            <td><span class="badge">{{ book.category.name }}</span></td>
-            <td>{{ book.available_copies }} / {{ book.total_copies }}</td>
-            <td>{{ queues[book.id]|length }}</td>
-            <td>
-              <form method="post" action="/borrow" style="display:inline">
-                <input type="hidden" name="reader_id" value="{{ reader_id }}">
-                <input type="hidden" name="book_id" value="{{ book.id }}">
-                <button type="submit">Взяти</button>
-              </form>
-              <form method="post" action="/reserve" style="display:inline">
-                <input type="hidden" name="reader_id" value="{{ reader_id }}">
-                <input type="hidden" name="book_id" value="{{ book.id }}">
-                <button type="submit" class="secondary">Резерв</button>
-              </form>
-            </td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>Активні позики</h2>
-      {% if active_loans %}
-      <table>
-        <thead><tr><th>ID</th><th>Книга</th><th>До</th><th></th></tr></thead>
-        <tbody>
-        {% for loan in active_loans %}
-          <tr>
-            <td>{{ loan.id }}</td>
-            <td>{{ loan.book_id }}</td>
-            <td>{{ loan.due_at.date() }}</td>
-            <td>
-              <form method="post" action="/return">
-                <input type="hidden" name="reader_id" value="{{ reader_id }}">
-                <input type="hidden" name="loan_id" value="{{ loan.id }}">
-                <button type="submit">Повернути</button>
-              </form>
-            </td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      {% else %}<p>Немає активних позик.</p>{% endif %}
-    </div>
-
-    <div class="card">
-      <h2>Бібліотекар (демо)</h2>
-      <form method="post" action="/block" style="display:inline">
-        <input type="hidden" name="reader_id" value="{{ reader_id }}">
-        <label>Днів блокування: <input type="number" name="days" value="7" min="1" max="90" style="width:4rem"></label>
-        <button type="submit" class="secondary">Заблокувати</button>
-      </form>
-      <form method="post" action="/unblock" style="display:inline; margin-left:.5rem">
-        <input type="hidden" name="reader_id" value="{{ reader_id }}">
-        <button type="submit">Розблокувати</button>
-      </form>
-    </div>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     {% if notifications %}
-    <div class="card">
-      <h2>Observer: сповіщення про наявність</h2>
-      <ul>
+    <section class="panel">
+      <h2>Observer: сповіщення про наявність (UC-05)</h2>
+      <ul class="notif-list">
         {% for book_id, user_id, copies in notifications %}
-          <li>Книга {{ book_id }} — наступний у черзі: {{ user_id }} ({{ copies }} прим.)</li>
+          <li>Книга <strong>{{ book_titles.get(book_id, book_id) }}</strong> — наступний: {{ user_names.get(user_id, user_id) }}</li>
         {% endfor %}
       </ul>
-    </div>
+    </section>
     {% endif %}
-  </main>
-</body>
-</html>
+  </div>
+
+  {% else %}
+  <aside class="sidebar">
+    <section class="panel profile-panel">
+      <h2>Мій профіль</h2>
+      {% if reader %}
+        <p class="profile-name">{{ reader.name }}</p>
+        <p class="profile-id">ID: {{ reader.id }}</p>
+        {% if blocked %}
+          <span class="status-pill blocked">⛔ Заблоковано</span>
+          <p class="hint-text">Нові позики недоступні. Зверніться до бібліотекаря.</p>
+        {% else %}
+          <span class="status-pill ok">✓ Активний читач</span>
+        {% endif %}
+        <div class="stats-grid">
+          <div class="stat"><strong>{{ active_loans|length }}</strong><span>Позики</span></div>
+          <div class="stat"><strong>{{ reader.max_concurrent_loans }}</strong><span>Ліміт</span></div>
+          <div class="stat"><strong>{{ my_reservations }}</strong><span>Резерви</span></div>
+          <div class="stat"><strong>{{ books_available }}</strong><span>Доступно</span></div>
+        </div>
+      {% endif %}
+    </section>
+
+    {% if my_reservation_list %}
+    <section class="panel">
+      <h2>Мої резерви (UC-04)</h2>
+      <ul class="reserve-list">
+        {% for res, title in my_reservation_list %}
+        <li>
+          <span><strong>{{ title }}</strong> · #{{ res.sequence }}</span>
+          <form method="post" action="/cancel-reservation">
+            <input type="hidden" name="mode" value="reader">
+            <input type="hidden" name="reader_id" value="{{ reader_id }}">
+            <input type="hidden" name="reservation_id" value="{{ res.id }}">
+            <button type="submit" class="btn btn-secondary btn-sm">Скасувати</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    {% if notifications %}
+    <section class="panel">
+      <h2>Сповіщення</h2>
+      <ul class="notif-list">
+        {% for book_id, user_id, copies in notifications %}
+          <li>{{ book_titles.get(book_id, book_id) }} → {{ user_names.get(user_id, user_id) }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </aside>
+
+  <div class="main-content">
+    <section>
+      <div class="section-head">
+        <h2>Каталог книг</h2>
+        <form class="search-form" method="get" action="/">
+          <input type="hidden" name="mode" value="reader">
+          <input type="hidden" name="reader_id" value="{{ reader_id }}">
+          <input type="search" name="q" value="{{ search_q }}" placeholder="Пошук за назвою…" aria-label="Пошук книг">
+          <button type="submit" class="btn btn-secondary btn-sm">Знайти</button>
+          {% if search_q %}
+            <a href="{{ url_for('index', mode='reader', reader_id=reader_id) }}" class="btn btn-secondary btn-sm">Скинути</a>
+          {% endif %}
+        </form>
+      </div>
+      {% if books %}
+      <div class="catalog">
+        {% for book in books %}
+          {% set q = queues[book.id]|length %}
+          <article class="book-card">
+            <div class="book-cover {{ book.category.name|lower }}{% if book.available_copies == 0 %} unavailable{% endif %}">
+              <span class="cat">{{ book.category.name }}</span>
+            </div>
+            <div class="book-body">
+              <h3>{{ book.title }}</h3>
+              <div class="availability">
+                <span class="dot{% if book.available_copies == 0 %} none{% endif %}"></span>
+                {% if book.available_copies > 0 %}{{ book.available_copies }} / {{ book.total_copies }} вільно{% else %}Немає в наявності{% endif %}
+              </div>
+              {% if q > 0 %}<p class="queue-hint">У черзі: {{ q }}</p>{% else %}<p class="queue-hint">&nbsp;</p>{% endif %}
+              <div class="book-actions">
+                <form method="post" action="/borrow">
+                  <input type="hidden" name="mode" value="reader">
+                  <input type="hidden" name="reader_id" value="{{ reader_id }}">
+                  <input type="hidden" name="book_id" value="{{ book.id }}">
+                  <button type="submit" class="btn btn-primary btn-sm"
+                    {% if book.available_copies == 0 or blocked or book.category.name == 'REFERENCE' %}disabled{% endif %}>Взяти</button>
+                </form>
+                <form method="post" action="/reserve">
+                  <input type="hidden" name="mode" value="reader">
+                  <input type="hidden" name="reader_id" value="{{ reader_id }}">
+                  <input type="hidden" name="book_id" value="{{ book.id }}">
+                  <button type="submit" class="btn btn-secondary btn-sm" {% if blocked %}disabled{% endif %}>Резерв</button>
+                </form>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state"><p>Книг не знайдено{% if search_q %} за запитом «{{ search_q }}»{% endif %}.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><h2>Мої позики</h2><p>UC-01 / UC-02 / UC-03</p></div>
+      {% if active_loans %}
+        <div class="loans-list">
+          {% for loan in active_loans %}
+            <div class="loan-item">
+              <div class="loan-info">
+                <strong>{{ book_titles.get(loan.book_id, loan.book_id) }}</strong>
+                <span>Повернути до {{ loan.due_at.strftime('%d.%m.%Y') }}</span>
+              </div>
+              <form method="post" action="/return">
+                <input type="hidden" name="mode" value="reader">
+                <input type="hidden" name="reader_id" value="{{ reader_id }}">
+                <input type="hidden" name="loan_id" value="{{ loan.id }}">
+                <button type="submit" class="btn btn-primary btn-sm">Повернути</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state"><div class="icon">📖</div><p>Немає активних позик.</p></div>
+      {% endif %}
+    </section>
+
+    {% if loan_history %}
+    <section class="panel">
+      <div class="section-head"><h2>Історія повернень</h2><p>Штрафи (Strategy)</p></div>
+      <div class="loans-list">
+        {% for loan in loan_history %}
+          <div class="loan-item history-item">
+            <div class="loan-info">
+              <strong>{{ book_titles.get(loan.book_id, loan.book_id) }}</strong>
+              <span>{{ loan.returned_at.strftime('%d.%m.%Y') if loan.returned_at else '—' }}</span>
+            </div>
+            <span class="penalty-badge{% if loan.penalty_amount > 0 %} has-penalty{% endif %}">
+              Штраф: {{ loan.penalty_amount }}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<footer class="site-footer">In-memory бібліотека · Strategy · Observer · layered architecture</footer>
+{% endblock %}
