@@ -2,9 +2,9 @@ name: CI Quality Gate
 
 on:
   push:
-    branches: [main, master, develop, kursova]
+    branches: [main]
   pull_request:
-    branches: [main, master, develop, kursova]
+    branches: [main]
 
 # Для SonarCloud (PR decoration) зручно мати read на pull-requests
 permissions:
