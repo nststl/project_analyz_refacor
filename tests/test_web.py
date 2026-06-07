@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from web.app import create_app
@@ -9,7 +11,11 @@ from web.context import build_library_context
 @pytest.fixture
 def client():
     ctx = build_library_context(seed=True)
-    app = create_app(ctx, testing=True)
+    app = create_app(
+        ctx,
+        testing=True,
+        session_key=os.environ["FLASK_TEST_SECRET_KEY"],
+    )
     return app.test_client(), ctx
 
 

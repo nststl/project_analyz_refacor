@@ -139,8 +139,8 @@ img {
 }
 
 .role-tab:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff8f0;
 }
 
 .role-tab.active {

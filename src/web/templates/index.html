@@ -23,8 +23,8 @@
     <form class="reader-switch" method="get" action="/">
       <input type="hidden" name="mode" value="reader">
       {% if search_q %}<input type="hidden" name="q" value="{{ search_q }}">{% endif %}
-      <label for="reader_id">Увійти як</label>
-      <select id="reader_id" name="reader_id" onchange="this.form.submit()" aria-label="Оберіть читача">
+      <label for="reader_id">Увійти як читач</label>
+      <select id="reader_id" name="reader_id" onchange="this.form.submit()">
         {% for u in users %}
           <option value="{{ u.id }}" {% if u.id == reader_id %}selected{% endif %}>{{ u.name }}</option>
         {% endfor %}
@@ -37,7 +37,7 @@
 <div class="page">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div class="flash-stack page-flash" role="status">
+      <div class="flash-stack page-flash" aria-live="polite">
         {% for category, message in messages %}
           <div class="flash {{ category }}">{% if category == 'success' %}✓{% else %}!{% endif %} {{ message }}</div>
         {% endfor %}
