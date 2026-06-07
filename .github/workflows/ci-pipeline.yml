@@ -51,8 +51,15 @@ jobs:
             reports/junit.xml
             htmlcov/
 
-      # SONAR_TOKEN — лише токен з SonarCloud (див. README). Рекомендовано Organization token з правами аналізу.
-      # Офіційна дія замість застарілого sonarcloud-github-action: https://github.com/SonarSource/sonarqube-scan-action
+      - name: Verify SONAR_TOKEN secret exists
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::error::SONAR_TOKEN не налаштовано. GitHub → nststl/project_analyz_refacor → Settings → Secrets and variables → Actions → New repository secret. Ім'я ТОЧНО: SONAR_TOKEN (токен з SonarCloud → My Account → Security)."
+            exit 1
+          fi
+
       - name: SonarCloud scan
         uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
