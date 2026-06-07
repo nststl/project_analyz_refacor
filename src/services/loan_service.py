@@ -156,9 +156,6 @@ class LoanService:
     def active_loans_for(self, user_id: str) -> list[Loan]:
         return self._loans.list_active_by_user(user_id)
 
-    def all_active_loans(self) -> list[Loan]:
-        return self._loans.list_active_all()
-
     def estimated_penalty(self, loan: Loan, as_of: datetime | None = None) -> Decimal:
         when = ensure_aware_utc(as_of or self._clock.now())
         book = self._books.get_by_id(loan.book_id)

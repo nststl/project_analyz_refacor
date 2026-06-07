@@ -70,7 +70,10 @@ class AutoBlockingService:
 
         blocked: list[User] = []
         for reader_id, (overdue_days, total_penalty) in worst.items():
-            updated = self.maybe_suspend_reader(reader_id, overdue_days, total_penalty, when)
+            try:
+                updated = self.maybe_suspend_reader(reader_id, overdue_days, total_penalty, when)
+            except UserNotFoundError:
+                continue
             if updated is not None and updated.is_blocked_at(when):
                 blocked.append(updated)
         return blocked

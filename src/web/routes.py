@@ -71,6 +71,7 @@ def register_routes(app: Flask, ctx: LibraryContext) -> None:
         loan_id = request.form.get("loan_id", "")
 
         def _return() -> None:
+            notif_before = len(ctx.observer.notifications)
             loan = ctx.loan_service.return_loan(loan_id)
             if loan.returned_at is not None and loan.penalty_amount > 0:
                 overdue = calendar_overdue_days(loan.due_at, loan.returned_at)
@@ -83,7 +84,7 @@ def register_routes(app: Flask, ctx: LibraryContext) -> None:
                 )
             else:
                 log_event(ctx, "UC-02 Повернення вчасно, штраф 0 грн")
-            if ctx.observer.notifications:
+            if len(ctx.observer.notifications) > notif_before:
                 last = ctx.observer.notifications[-1]
                 log_event(ctx, f"UC-05 Observer: книга {last[0]} доступна для {last[1]}")
 
@@ -124,7 +125,7 @@ def register_routes(app: Flask, ctx: LibraryContext) -> None:
                 )
             else:
                 flash(f"Час симуляції переведено вперед на {days} дн.", "success")
-        except (ValueError, RuntimeError):
+        except (ValueError, DomainError):
             flash("Помилка операції.", "error")
         return h.redirect_back(rid, mode)
 

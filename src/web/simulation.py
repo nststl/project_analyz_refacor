@@ -3,21 +3,21 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 
 from patterns.penalty_strategy import LinearPenaltyStrategy, TieredPenaltyStrategy
-from services.loan_service import SimulatedClock
 from utils.time_utils import calendar_overdue_days
 from web.context import LibraryContext
+
+_DEFAULT_PENALTY_RATE = Decimal("10")
+_MAX_EVENT_LOG = 80
 
 
 def log_event(ctx: LibraryContext, message: str) -> None:
     ts = ctx.clock.now().strftime("%Y-%m-%d %H:%M")
     ctx.event_log.append(f"[{ts}] {message}")
-    if len(ctx.event_log) > 80:
-        del ctx.event_log[: len(ctx.event_log) - 80]
+    if len(ctx.event_log) > _MAX_EVENT_LOG:
+        ctx.event_log[:] = ctx.event_log[-_MAX_EVENT_LOG:]
 
 
 def advance_simulation_days(ctx: LibraryContext, days: int) -> list[str]:
-    if not isinstance(ctx.clock, SimulatedClock):
-        raise RuntimeError("simulation clock required")
     before = ctx.clock.now()
     ctx.clock.advance_days(days)
     after = ctx.clock.now()
@@ -50,10 +50,12 @@ def apply_penalty_strategy(ctx: LibraryContext, kind: str, rate: Decimal) -> str
     return label
 
 
-def parse_penalty_rate(raw: str, *, default: Decimal = Decimal("10")) -> Decimal:
+def parse_penalty_rate(raw: str | None, *, default: Decimal = _DEFAULT_PENALTY_RATE) -> Decimal:
+    if raw is None or not str(raw).strip():
+        return default
     try:
-        value = Decimal(raw.strip())
-    except (InvalidOperation, AttributeError):
+        value = Decimal(str(raw).strip())
+    except InvalidOperation:
         return default
     if value <= 0 or value > Decimal("1000"):
         return default
