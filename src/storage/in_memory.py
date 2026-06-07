@@ -53,6 +53,11 @@ class InMemoryLoanRepository(ILoanRepository):
 
         return [l for l in self._by_id.values() if l.user_id == user_id and l.state == LoanState.ACTIVE]
 
+    def list_active_all(self) -> list[Loan]:
+        from models.enums import LoanState
+
+        return [l for l in self._by_id.values() if l.state == LoanState.ACTIVE]
+
 
 class InMemoryReservationRepository(IReservationRepository):
     def __init__(self) -> None:

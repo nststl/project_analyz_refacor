@@ -62,3 +62,15 @@ def clamp_block_days(raw: str, *, default: int = 7, max_days: int = 90) -> int:
     except (TypeError, ValueError):
         return default
     return max(1, min(max_days, days))
+
+
+def clamp_advance_days(raw: str, *, default: int = 1, max_days: int = 365) -> int:
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(max_days, days))
+
+
+def pick_penalty_kind(raw: str) -> str:
+    return raw if raw in ("linear", "tiered") else "linear"

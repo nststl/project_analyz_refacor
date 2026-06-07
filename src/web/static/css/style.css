@@ -526,6 +526,10 @@ img {
   background: linear-gradient(145deg, #2d6a4f 0%, #40916c 50%, #95d5b2 100%);
 }
 
+.book-cover.rare {
+  background: linear-gradient(145deg, #7b2cbf 0%, #9d4edd 50%, #e0aaff 100%);
+}
+
 .book-cover.reference {
   background: linear-gradient(145deg, #1d3557 0%, #457b9d 50%, #a8dadc 100%);
 }
@@ -726,4 +730,123 @@ input[type="number"] {
   text-align: center;
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.sim-clock {
+  text-align: right;
+  font-size: 0.78rem;
+  opacity: 0.9;
+}
+
+.sim-clock-label {
+  display: block;
+  opacity: 0.75;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sim-clock strong {
+  font-family: ui-monospace, monospace;
+  font-size: 0.95rem;
+}
+
+.sim-bar-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .sim-bar-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sim-block h2 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.time-buttons,
+.time-custom,
+.strategy-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.strategy-form select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--surface-2);
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.loan-item-overdue {
+  border: 1px solid rgba(155, 34, 38, 0.25);
+  background: var(--err-bg);
+}
+
+.loan-status {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin: 0.15rem 0;
+}
+
+.loan-status-overdue {
+  color: var(--err);
+}
+
+.loan-status-active {
+  color: var(--ok);
+}
+
+.loan-status-due_today {
+  color: var(--accent);
+}
+
+.loan-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.event-log {
+  margin-top: 0;
+}
+
+.event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+  background: var(--bg-deep);
+  color: #c8e6d0;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+}
+
+.event-list li {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.event-list li:last-child {
+  border-bottom: none;
+}
+
+.librarian-penalty {
+  display: block;
+  margin-top: 0.35rem;
+  width: fit-content;
 }

@@ -19,6 +19,10 @@
       <a href="{{ url_for('index', mode='librarian', reader_id=reader_id) }}"
          class="role-tab{% if mode == 'librarian' %} active{% endif %}">🔑 Бібліотекар</a>
     </nav>
+    <div class="sim-clock" aria-live="polite">
+      <span class="sim-clock-label">Час симуляції</span>
+      <strong>{{ sim_time }}</strong>
+    </div>
     {% if mode == 'reader' %}
     <form class="reader-switch" method="get" action="/">
       <input type="hidden" name="mode" value="reader">
@@ -44,6 +48,49 @@
       </div>
     {% endif %}
   {% endwith %}
+
+  <section class="panel sim-bar full-width">
+    <div class="sim-bar-grid">
+      <div class="sim-block">
+        <h2>⏱ Керування часом</h2>
+        <p class="hint-text">Перемотайте час для перевірки прострочення, штрафів та UC-07.</p>
+        <form method="post" action="/advance-time" class="time-buttons">
+          {{ csrf_field() }}
+          <input type="hidden" name="mode" value="{{ mode }}">
+          <input type="hidden" name="reader_id" value="{{ reader_id }}">
+          <button type="submit" name="days" value="1" class="btn btn-secondary btn-sm">+1 день</button>
+          <button type="submit" name="days" value="7" class="btn btn-secondary btn-sm">+7 днів</button>
+          <button type="submit" name="days" value="14" class="btn btn-secondary btn-sm">+14 днів</button>
+          <button type="submit" name="days" value="30" class="btn btn-secondary btn-sm">+30 днів</button>
+        </form>
+        <form method="post" action="/advance-time" class="time-custom">
+          {{ csrf_field() }}
+          <input type="hidden" name="mode" value="{{ mode }}">
+          <input type="hidden" name="reader_id" value="{{ reader_id }}">
+          <label for="custom_days">+ днів</label>
+          <input id="custom_days" type="number" name="days" value="10" min="1" max="365">
+          <button type="submit" class="btn btn-primary btn-sm">Перемотати</button>
+        </form>
+      </div>
+      <div class="sim-block">
+        <h2>💰 Налаштування штрафів (Strategy)</h2>
+        <form method="post" action="/set-penalty-strategy" class="strategy-form">
+          {{ csrf_field() }}
+          <input type="hidden" name="mode" value="{{ mode }}">
+          <input type="hidden" name="reader_id" value="{{ reader_id }}">
+          <label for="strategy">Стратегія</label>
+          <select id="strategy" name="strategy">
+            <option value="linear" {% if penalty_kind == 'linear' %}selected{% endif %}>Linear (Лінійна)</option>
+            <option value="tiered" {% if penalty_kind == 'tiered' %}selected{% endif %}>Tiered (Ступінчаста)</option>
+          </select>
+          <label for="rate">UAH/day</label>
+          <input id="rate" type="number" name="rate" value="{{ penalty_rate }}" min="1" max="1000" step="1">
+          <button type="submit" class="btn btn-primary btn-sm">Застосувати</button>
+        </form>
+        <p class="hint-text">RARE ×2; Tiered — ×2 ставка після 7 днів.</p>
+      </div>
+    </div>
+  </section>
 
   {% if mode == 'librarian' %}
   <div class="main-content full-width">
@@ -72,6 +119,9 @@
               <td>
                 {% if row.blocked %}
                   <span class="status-pill blocked">Заблоковано</span>
+                  {% if row.estimated_penalty > 0 %}
+                    <span class="penalty-badge has-penalty librarian-penalty">Штраф: {{ row.estimated_penalty }} грн</span>
+                  {% endif %}
                 {% else %}
                   <span class="status-pill ok">Активний</span>
                 {% endif %}
@@ -128,10 +178,10 @@
           <span class="status-pill ok">✓ Активний читач</span>
         {% endif %}
         <div class="stats-grid">
-          <div class="stat"><strong>{{ active_loans|length }}</strong><span>Позики</span></div>
-          <div class="stat"><strong>{{ reader.max_concurrent_loans }}</strong><span>Ліміт</span></div>
+          <div class="stat"><strong>{{ active_loans|length }} / {{ reader.max_concurrent_loans }}</strong><span>Позики</span></div>
           <div class="stat"><strong>{{ my_reservations }}</strong><span>Резерви</span></div>
           <div class="stat"><strong>{{ books_available }}</strong><span>Доступно</span></div>
+          <div class="stat"><strong>{{ penalty_kind }}</strong><span>Strategy</span></div>
         </div>
       {% endif %}
     </section>
@@ -204,7 +254,7 @@
                   <input type="hidden" name="reader_id" value="{{ reader_id }}">
                   <input type="hidden" name="book_id" value="{{ book.id }}">
                   <button type="submit" class="btn btn-primary btn-sm"
-                    {% if book.available_copies == 0 or blocked or book.category.name == 'REFERENCE' %}disabled{% endif %}>Взяти</button>
+                    {% if book.available_copies == 0 or blocked or book.category.name == 'REFERENCE' or active_loans|length >= reader.max_concurrent_loans %}disabled{% endif %}>Взяти</button>
                 </form>
                 <form method="post" action="/reserve">
                   {{ csrf_field() }}
@@ -224,22 +274,28 @@
     </section>
 
     <section class="panel">
-      <div class="section-head"><h2>Мої позики</h2><p>UC-01 / UC-02 / UC-03</p></div>
-      {% if active_loans %}
+      <div class="section-head"><h2>Мої позики</h2><p>UC-01 / UC-02 / UC-03 · ліміт {{ reader.max_concurrent_loans if reader else 2 }}</p></div>
+      {% if active_loan_rows %}
         <div class="loans-list">
-          {% for loan in active_loans %}
-            <div class="loan-item">
+          {% for row in active_loan_rows %}
+            <div class="loan-item loan-item-{{ row.status }}">
               <div class="loan-info">
-                <strong>{{ book_titles.get(loan.book_id, loan.book_id) }}</strong>
-                <span>Повернути до {{ loan.due_at.strftime('%d.%m.%Y') }}</span>
+                <strong>{{ book_titles.get(row.loan.book_id, row.loan.book_id) }}</strong>
+                <span class="loan-status loan-status-{{ row.status }}">{{ row.status_label }}</span>
+                <span>Дедлайн: {{ row.loan.due_at.strftime('%d.%m.%Y') }}</span>
               </div>
-              <form method="post" action="/return">
-                {{ csrf_field() }}
-                <input type="hidden" name="mode" value="reader">
-                <input type="hidden" name="reader_id" value="{{ reader_id }}">
-                <input type="hidden" name="loan_id" value="{{ loan.id }}">
-                <button type="submit" class="btn btn-primary btn-sm">Повернути</button>
-              </form>
+              <div class="loan-side">
+                <span class="penalty-badge{% if row.estimated_penalty > 0 %} has-penalty{% endif %}">
+                  Штраф: {{ row.estimated_penalty }} грн
+                </span>
+                <form method="post" action="/return">
+                  {{ csrf_field() }}
+                  <input type="hidden" name="mode" value="reader">
+                  <input type="hidden" name="reader_id" value="{{ reader_id }}">
+                  <input type="hidden" name="loan_id" value="{{ row.loan.id }}">
+                  <button type="submit" class="btn btn-primary btn-sm">Повернути</button>
+                </form>
+              </div>
             </div>
           {% endfor %}
         </div>
@@ -267,6 +323,21 @@
     </section>
     {% endif %}
   </div>
+
+  {% endif %}
+
+  {% if event_log %}
+  <section class="panel event-log full-width">
+    <div class="section-head">
+      <h2>Логи подій (Observer &amp; Events)</h2>
+      <p>Останні дії симуляції</p>
+    </div>
+    <ul class="event-list">
+      {% for entry in event_log %}
+        <li>{{ entry }}</li>
+      {% endfor %}
+    </ul>
+  </section>
   {% endif %}
 </div>
 

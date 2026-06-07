@@ -38,6 +38,25 @@ class SystemClock:
         return datetime.now(timezone.utc)
 
 
+class SimulatedClock:
+    """Adjustable clock for in-browser simulation (time travel for overdue tests)."""
+
+    def __init__(self, start: datetime | None = None) -> None:
+        self._now = ensure_aware_utc(start or datetime.now(timezone.utc))
+
+    def now(self) -> datetime:
+        return self._now
+
+    def advance_days(self, days: int) -> datetime:
+        if days <= 0:
+            raise ValueError("days must be positive")
+        self._now = self._now + timedelta(days=days)
+        return self._now
+
+    def set(self, moment: datetime) -> None:
+        self._now = ensure_aware_utc(moment)
+
+
 class UuidIdGenerator:
     def new_id(self, prefix: str) -> str:
         import uuid
@@ -136,6 +155,24 @@ class LoanService:
 
     def active_loans_for(self, user_id: str) -> list[Loan]:
         return self._loans.list_active_by_user(user_id)
+
+    def all_active_loans(self) -> list[Loan]:
+        return self._loans.list_active_all()
+
+    def estimated_penalty(self, loan: Loan, as_of: datetime | None = None) -> Decimal:
+        when = ensure_aware_utc(as_of or self._clock.now())
+        book = self._books.get_by_id(loan.book_id)
+        if book is None:
+            return Decimal("0")
+        overdue = calendar_overdue_days(loan.due_at, when)
+        return self._penalty.calculate(overdue, book.category)
+
+    def set_penalty_strategy(self, strategy: PenaltyStrategy) -> None:
+        self._penalty = strategy
+
+    @property
+    def penalty_strategy(self) -> PenaltyStrategy:
+        return self._penalty
 
     def _require_reader(self, user_id: str) -> User:
         u = self._users.get_by_id(user_id)

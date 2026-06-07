@@ -19,7 +19,7 @@ def test_home_page_ok(client):
     c, _ = client
     r = c.get("/")
     assert r.status_code == 200
-    assert b"Python 101" in r.data
+    assert b"Python" in r.data
     assert b"Clean Code" in r.data
 
 
@@ -27,14 +27,14 @@ def test_home_with_reader_query(client):
     c, _ = client
     r = c.get("/?reader_id=reader-2")
     assert r.status_code == 200
-    assert b"reader-2" in r.data or b"Ivan" in r.data
+    assert b"reader-2" in r.data or b"\xd0\x91\xd0\xbe\xd0\xb3\xd0\xb4\xd0\xb0\xd0\xbd" in r.data
 
 
 def test_search_books(client):
     c, _ = client
     r = c.get("/?q=python")
     assert r.status_code == 200
-    assert b"Python 101" in r.data
+    assert b"Python" in r.data
     assert b"Clean Code" not in r.data
 
 
@@ -159,3 +159,51 @@ def test_duplicate_reserve_shows_error(client):
         c, "/reserve", {"reader_id": "reader-1", "book_id": "b2", "mode": "reader"}
     )
     assert r.status_code == 200
+
+
+def test_loan_limit_max_two(client):
+    c, ctx = client
+    csrf_post(c, "/borrow", {"reader_id": "reader-1", "book_id": "b1", "mode": "reader"})
+    csrf_post(c, "/borrow", {"reader_id": "reader-1", "book_id": "b4", "mode": "reader"})
+    assert len(ctx.loan_service.active_loans_for("reader-1")) == 2
+    csrf_post(c, "/borrow", {"reader_id": "reader-1", "book_id": "b5", "mode": "reader"})
+    assert len(ctx.loan_service.active_loans_for("reader-1")) == 2
+
+
+def test_advance_time_overdue_penalty(client):
+    c, ctx = client
+    csrf_post(c, "/borrow", {"reader_id": "reader-1", "book_id": "b1", "mode": "reader"})
+    csrf_post(c, "/advance-time", {"reader_id": "reader-1", "days": "30", "mode": "reader"})
+    loan = ctx.loan_service.active_loans_for("reader-1")[0]
+    penalty = ctx.loan_service.estimated_penalty(loan)
+    assert penalty > 0
+
+
+def test_advance_time_auto_blocks_reader(client):
+    c, ctx = client
+    csrf_post(c, "/borrow", {"reader_id": "reader-1", "book_id": "b1", "mode": "reader"})
+    csrf_post(c, "/advance-time", {"reader_id": "reader-1", "days": "30", "mode": "reader"})
+    user = ctx.users.get_by_id("reader-1")
+    assert user is not None
+    assert user.is_blocked_at(ctx.clock.now())
+
+
+def test_set_penalty_strategy_tiered(client):
+    c, ctx = client
+    csrf_post(
+        c,
+        "/set-penalty-strategy",
+        {"reader_id": "reader-1", "strategy": "tiered", "rate": "10", "mode": "reader"},
+    )
+    assert ctx.penalty_kind == "tiered"
+    assert ctx.penalty_rate == 10
+
+
+def test_librarian_panel_shows_penalty_for_blocked_reader(client):
+    c, _ = client
+    csrf_post(c, "/borrow", {"reader_id": "reader-1", "book_id": "b1", "mode": "reader"})
+    csrf_post(c, "/advance-time", {"reader_id": "reader-1", "days": "30", "mode": "reader"})
+    r = c.get("/?mode=librarian")
+    assert r.status_code == 200
+    assert "Штраф:".encode() in r.data
+    assert b"\xd0\xb3\xd1\x80\xd0\xbd" in r.data

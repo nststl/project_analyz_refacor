@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from models.enums import LoanState, Role
 from web.context import LibraryContext
+from web.simulation import build_loan_row, reader_estimated_penalty
 
 LIBRARIAN_ID = "lib-1"
 
@@ -46,6 +47,7 @@ def loan_history(ctx: LibraryContext, reader_id: str, limit: int = 8):
 def reader_rows(ctx: LibraryContext, users, now) -> list[dict]:
     rows: list[dict] = []
     for u in users:
+        penalty = reader_estimated_penalty(ctx, u.id)
         rows.append(
             {
                 "user": u,
@@ -57,6 +59,7 @@ def reader_rows(ctx: LibraryContext, users, now) -> list[dict]:
                     for r in ctx.reservation_service.queue(b.id)
                     if r.user_id == u.id
                 ),
+                "estimated_penalty": penalty,
             }
         )
     return rows
@@ -85,7 +88,14 @@ def build_index_context(
         "librarian": ctx.users.get_by_id(LIBRARIAN_ID),
         "mode": mode,
         "search_q": search_q,
+        "sim_time": now.strftime("%Y-%m-%d %H:%M:%S"),
         "active_loans": ctx.loan_service.active_loans_for(reader_id),
+        "active_loan_rows": [
+            build_loan_row(ctx, loan) for loan in ctx.loan_service.active_loans_for(reader_id)
+        ],
+        "penalty_kind": ctx.penalty_kind,
+        "penalty_rate": ctx.penalty_rate,
+        "event_log": list(reversed(ctx.event_log[-20:])),
         "notifications": ctx.observer.notifications[-5:],
         "blocked": reader.is_blocked_at(now) if reader else False,
         "queues": {b.id: ctx.reservation_service.queue(b.id) for b in all_books},
