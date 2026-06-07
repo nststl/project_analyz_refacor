@@ -60,22 +60,21 @@ jobs:
             exit 1
           fi
 
-      - name: Verify SONAR_TOKEN can read Quality Gate API
+      - name: Verify SONAR_TOKEN is valid
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          # Без &branch= — mainline на Free plan; &branch=main дає 403 для private org
-          HTTP_CODE=$(curl -s -o /tmp/sonar-api.json -w "%{http_code}" \
+          HTTP_CODE=$(curl -s -o /tmp/sonar-auth.json -w "%{http_code}" \
             -u "${SONAR_TOKEN}:" \
-            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=nststl_project_analyz_refacor")
+            "https://sonarcloud.io/api/authentication/validate")
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::Quality Gate API недоступний (HTTP ${HTTP_CODE}). Перевір SONAR_TOKEN (user token з sonarcloud.io/account → Security)."
-            cat /tmp/sonar-api.json 2>/dev/null || true
+            echo "::error::SONAR_TOKEN невалідний (HTTP ${HTTP_CODE}). User token: sonarcloud.io/account → Security."
+            cat /tmp/sonar-auth.json 2>/dev/null || true
             exit 1
           fi
-          echo "SONAR_TOKEN OK — Quality Gate API доступний"
+          echo "SONAR_TOKEN OK"
 
-      # Free plan: push на main — без sonar.branch.name (інакше type:short → 403)
+      # Free plan: mainline-аналіз (без sonar.branch.name), QG — окремим кроком після upload
       - name: SonarCloud scan (push to main)
         if: github.event_name == 'push'
         uses: SonarSource/sonarqube-scan-action@v5.0.0
@@ -83,9 +82,35 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          args: >
-            -Dsonar.branch.autoconfig.disabled=true
-            -Dsonar.qualitygate.wait=true
+          args: -Dsonar.branch.autoconfig.disabled=true
+
+      - name: Wait for Quality Gate (push to main)
+        if: github.event_name == 'push'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          echo "Waiting for SonarCloud mainline Quality Gate..."
+          for i in $(seq 1 36); do
+            RESP=$(curl -s -w "\n%{http_code}" -u "${SONAR_TOKEN}:" \
+              "https://sonarcloud.io/api/qualitygates/project_status?projectKey=nststl_project_analyz_refacor")
+            HTTP_CODE=$(echo "$RESP" | tail -n1)
+            BODY=$(echo "$RESP" | sed '$d')
+            if [ "$HTTP_CODE" = "200" ]; then
+              STATUS=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('projectStatus',{}).get('status',''))")
+              echo "Quality Gate: $STATUS"
+              if [ "$STATUS" = "OK" ]; then exit 0; fi
+              if [ "$STATUS" = "ERROR" ]; then
+                echo "::error::Quality Gate FAILED"
+                echo "$BODY"
+                exit 1
+              fi
+            else
+              echo "Attempt $i/36 — HTTP $HTTP_CODE, retry in 10s..."
+            fi
+            sleep 10
+          done
+          echo "::error::Quality Gate check timeout (6 min)"
+          exit 1
 
       - name: SonarCloud scan (pull request)
         if: github.event_name == 'pull_request'
@@ -94,5 +119,4 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          args: >
-            -Dsonar.qualitygate.wait=true
+          args: -Dsonar.qualitygate.wait=true
